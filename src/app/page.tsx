@@ -1,22 +1,9 @@
+import { UploadCard } from "../components/upload/upload-card";
+
 export default function Home() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <section className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Upload your dataset</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Drag files here or click upload to add new data for cleaning and preview.
-            </p>
-          </div>
-          <button className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
-            Upload file
-          </button>
-        </div>
-        <div className="mt-6 rounded-3xl border border-dashed border-border/70 bg-background/80 p-10 text-center text-sm text-muted-foreground">
-          Upload area placeholder
-        </div>
-      </section>
+      <UploadCard />
 
       <section className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
