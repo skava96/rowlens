@@ -1,9 +1,64 @@
+"use client"
+
 import { UploadCard } from "../components/upload/upload-card";
+import { DatasetTable } from "../components/dataset/dataset-table";
+import SuggestionPanel from "../components/ai/suggestion-panel";
+import DatasetSummary from "@/components/dataset/dataset-summary";
+
+const activityItems = [
+  {
+    time: "10:42 AM",
+    label: "Uploaded customers.csv",
+  },
+  {
+    time: "10:43 AM",
+    label: "3 invalid emails detected",
+  },
+  {
+    time: "10:45 AM",
+    label: "Country names standardized",
+  },
+];
 
 export default function Home() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <UploadCard />
+      <DatasetSummary/>
+
+      <section id="activity" className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Activity Timeline</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Recent dataset events and cleaning actions.
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            Live
+          </span>
+        </div>
+
+        <ol className="mt-6 space-y-4">
+          {activityItems.map((item, index) => (
+            <li key={`${item.time}-${item.label}`} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <span className="mt-1 h-3 w-3 rounded-full bg-slate-900 dark:bg-slate-100" />
+                {index < activityItems.length - 1 ? (
+                  <span className="mt-2 h-full w-px bg-border" />
+                ) : null}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1 rounded-2xl border border-border/70 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 dark:bg-slate-950">
+                <time className="shrink-0 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {item.time}
+                </time>
+                <span className="hidden text-sm text-muted-foreground sm:inline">—</span>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{item.label}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <section className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -17,30 +72,8 @@ export default function Home() {
             Preview
           </span>
         </div>
-        <div className="mt-6 overflow-hidden rounded-[28px] border border-border/70 bg-background">
-          <div className="grid min-w-full grid-cols-[repeat(5,minmax(0,1fr))] gap-2 border-b border-border/70 bg-slate-50 px-4 py-3 text-xs uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-950">
-            <span>Name</span>
-            <span>Type</span>
-            <span>Rows</span>
-            <span>Missing</span>
-            <span>Status</span>
-          </div>
-          <div className="space-y-2 p-4 text-sm text-foreground">
-            <div className="grid min-w-full grid-cols-[repeat(5,minmax(0,1fr))] gap-2 rounded-3xl bg-slate-100 px-4 py-3 dark:bg-slate-950">
-              <span>customers.csv</span>
-              <span>CSV</span>
-              <span>12,006</span>
-              <span>1.2%</span>
-              <span className="text-sm text-emerald-600 dark:text-emerald-400">Ready</span>
-            </div>
-            <div className="grid min-w-full grid-cols-[repeat(5,minmax(0,1fr))] gap-2 rounded-3xl bg-slate-100 px-4 py-3 dark:bg-slate-950">
-              <span>orders.csv</span>
-              <span>CSV</span>
-              <span>8,940</span>
-              <span>4.5%</span>
-              <span className="text-sm text-amber-600 dark:text-amber-400">Review</span>
-            </div>
-          </div>
+        <div className="mt-6">
+          <DatasetTable />
         </div>
       </section>
 
@@ -56,25 +89,8 @@ export default function Home() {
             Refresh
           </button>
         </div>
-        <div className="mt-6 space-y-4">
-          <article className="rounded-3xl bg-background/95 p-5 shadow-sm ring-1 ring-border/60">
-            <h3 className="text-base font-semibold text-foreground">Standardize address fields</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              AI suggests normalizing address data to improve matching and deduplication.
-            </p>
-          </article>
-          <article className="rounded-3xl bg-background/95 p-5 shadow-sm ring-1 ring-border/60">
-            <h3 className="text-base font-semibold text-foreground">Fill missing customer IDs</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Identify rows with missing IDs and suggest inferred values from related records.
-            </p>
-          </article>
-          <article className="rounded-3xl bg-background/95 p-5 shadow-sm ring-1 ring-border/60">
-            <h3 className="text-base font-semibold text-foreground">Detect duplicate records</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Review duplicate detection suggestions to keep the dataset clean and consistent.
-            </p>
-          </article>
+        <div className="mt-6">
+          <SuggestionPanel onApprove={() => { }} onReject={() => { }} onReview={() => { }} />
         </div>
       </section>
     </div>
