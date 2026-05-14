@@ -1,4 +1,5 @@
-import { DatasetRow, AISuggestion } from "@/types/dataset";
+import { AISuggestion } from "@/types/dataset";
+import { DatasetRowView } from "@/features/datasets/adapters/datasetAdapter";
 
 export type DatasetStatus =
   | "idle"
@@ -9,21 +10,22 @@ export type DatasetStatus =
   | "completed"
   | "failed";
 
+export interface DatasetActivity {
+  id: string;
+  time: string;
+  label: string;
+}
+
 export interface DatasetWorkflowState {
   datasetId: string | null;
   fileName: string | null;
   status: DatasetStatus;
 
-  rows: DatasetRow[];
+  rows: DatasetRowView[];
   suggestions: AISuggestion[];
 
-  activity: {
-    id: string;
-    time: string;
-    label: string;
-  }[];
+  activity: DatasetActivity[];
 
   progress?: number;
-
   error?: string;
 }

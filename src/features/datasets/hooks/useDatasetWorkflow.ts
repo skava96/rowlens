@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+
 import { DatasetWorkflowState } from "../types/workflow";
 import { loadMockDataset } from "../adapters/datasetAdapter";
+
 import { mockSuggestions } from "@/mock/mockSuggestions";
 
 export function useDatasetWorkflow() {
@@ -13,26 +15,28 @@ export function useDatasetWorkflow() {
     rows: [],
     suggestions: [],
     activity: [],
-    progress: 0,
   });
 
   const startUpload = (fileName: string) => {
-    const id = crypto.randomUUID();
+    const datasetId = crypto.randomUUID();
 
-    setState({
-      datasetId: id,
+    setState((prev) => ({
+      ...prev,
+      datasetId,
       fileName,
       status: "uploading",
       rows: [],
       suggestions: [],
+      progress: 0,
+      error: undefined,
       activity: [
         {
+          id: crypto.randomUUID(),
           time: new Date().toLocaleTimeString(),
           label: `Uploading ${fileName}`,
         },
       ],
-      progress: 10,
-    });
+    }));
   };
 
   const setProgress = (progress: number) => {
@@ -40,23 +44,42 @@ export function useDatasetWorkflow() {
       ...prev,
       progress,
     }));
+
+    // Simulate processing transition
+    if (progress >= 100) {
+      setState((prev) => ({
+        ...prev,
+        status: "processing",
+        activity: [
+          ...prev.activity,
+          {
+            id: crypto.randomUUID(),
+            time: new Date().toLocaleTimeString(),
+            label: "Processing dataset",
+          },
+        ],
+      }));
+    }
   };
 
   const completeUpload = () => {
-    setState((prev) => ({
-      ...prev,
-      status: "ready",
-      rows: loadMockDataset(),
-      progress: 100,
-      suggestions: mockSuggestions,
-      activity: [
-        ...prev.activity,
-        {
-          time: new Date().toLocaleTimeString(),
-          label: "Upload completed",
-        },
-      ],
-    }));
+    setTimeout(() => {
+      setState((prev) => ({
+        ...prev,
+        status: "ready",
+        rows: loadMockDataset(),
+        suggestions: mockSuggestions,
+        progress: 100,
+        activity: [
+          ...prev.activity,
+          {
+            id: crypto.randomUUID(),
+            time: new Date().toLocaleTimeString(),
+            label: "Dataset ready for review",
+          },
+        ],
+      }));
+    }, 1200);
   };
 
   return {

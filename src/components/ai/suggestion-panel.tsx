@@ -17,7 +17,7 @@ import { AISuggestion } from "@/types/dataset";
 
 type Props = {
   suggestions: AISuggestion[];
-  hasDataset?: boolean;
+  hasDataset: boolean;
   onApproveSuggestion?: (id: string) => void;
   onRejectSuggestion?: (id: string) => void;
   onReviewSuggestion?: (id: string) => void;
@@ -25,9 +25,15 @@ type Props = {
 
 const formatRow = (row: number) => `#${row}`;
 
+function getSeverityVariant(severity: AISuggestion["severity"]) {
+  if (severity === "high") return "destructive";
+  if (severity === "medium") return "secondary";
+  return "outline";
+}
+
 export default function SuggestionPanel({
   suggestions,
-  hasDataset = true,
+  hasDataset,
   onApproveSuggestion,
   onRejectSuggestion,
   onReviewSuggestion,
@@ -48,13 +54,16 @@ export default function SuggestionPanel({
 
   if (!suggestions.length) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
-        No suggestions available.
-      </div>
+      <Card>
+        <CardContent className="p-6 text-sm text-muted-foreground">
+          No suggestions available.
+        </CardContent>
+      </Card>
     );
   }
 
   const priority = suggestions[0];
+  const remainingSuggestions = suggestions.slice(1);
 
   const handleApprove = (id: string) => onApproveSuggestion?.(id);
   const handleReject = (id: string) => onRejectSuggestion?.(id);
@@ -64,51 +73,50 @@ export default function SuggestionPanel({
     onReviewSuggestion?.(id);
   };
 
-  const renderSuggestionDetails = (s: AISuggestion) => (
-    <div className="mt-3 rounded-xl bg-muted/40 p-4 text-sm space-y-2">
+  const renderSuggestionDetails = (suggestion: AISuggestion) => (
+    <div className="mt-3 space-y-2 rounded-xl bg-muted/40 p-4 text-sm">
       <div>
         <p className="font-medium">Affected Rows</p>
         <p className="text-muted-foreground">
-          {s.affectedRows.map(formatRow).join(", ")}
+          {suggestion.affectedRows.map(formatRow).join(", ")}
         </p>
       </div>
 
       <div>
         <p className="font-medium">Type</p>
-        <p className="text-muted-foreground">{s.type}</p>
+        <p className="capitalize text-muted-foreground">{suggestion.type}</p>
       </div>
 
       <div>
         <p className="font-medium">Severity</p>
-        <p className="text-muted-foreground">{s.severity}</p>
+        <p className="capitalize text-muted-foreground">
+          {suggestion.severity}
+        </p>
       </div>
 
       <div>
         <p className="font-medium">Confidence</p>
-        <p className="text-muted-foreground">{s.confidence}%</p>
+        <p className="text-muted-foreground">{suggestion.confidence}%</p>
       </div>
     </div>
   );
 
   return (
-    <Card className="p-6 space-y-6">
-
-      {/* Header */}
+    <Card>
       <CardHeader className="space-y-2">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <CardTitle>Review Queue</CardTitle>
         </div>
+
         <CardDescription>
-          AI-generated validation suggestions for your dataset
+          AI-generated validation suggestions for your dataset.
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-
-        {/* Priority Suggestion */}
-        <div className="rounded-xl border p-4 space-y-3">
-          <div className="flex justify-between items-start gap-3">
+      <CardContent className="space-y-6 pt-0">
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold">{priority.title}</p>
               <p className="text-sm text-muted-foreground">
@@ -116,19 +124,26 @@ export default function SuggestionPanel({
               </p>
             </div>
 
-            <Badge>{priority.confidence}%</Badge>
+            <Badge variant="outline">{priority.confidence}%</Badge>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={() => handleApprove(priority.id)}>
               Approve
             </Button>
 
-            <Button variant="destructive" onClick={() => handleReject(priority.id)}>
+            <Button
+              variant="destructive"
+              onClick={() => handleReject(priority.id)}
+            >
               Reject
             </Button>
 
-            <Button variant="outline" onClick={() => handleReview(priority.id)}>
+            <Button
+              variant="outline"
+              aria-expanded={expandedId === priority.id}
+              onClick={() => handleReview(priority.id)}
+            >
               Review
             </Button>
           </div>
@@ -136,42 +151,46 @@ export default function SuggestionPanel({
           {expandedId === priority.id && renderSuggestionDetails(priority)}
         </div>
 
-        {/* List */}
-        <div className="space-y-3">
-          <p className="font-semibold">All Suggestions</p>
+        {remainingSuggestions.length > 0 && (
+          <div className="space-y-3">
+            <p className="font-semibold">All Suggestions</p>
 
-          {suggestions.map((s) => (
-            <div
-              key={s.id}
-              className="rounded-xl border p-4 space-y-2"
-            >
-              <div className="flex justify-between gap-3">
-                <div>
-                  <p className="font-medium">{s.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {s.description}
-                  </p>
-                </div>
-
-                <div className="flex gap-2 items-start">
-                  <Badge>{s.severity}</Badge>
-                  <Badge variant="outline">{s.confidence}%</Badge>
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleReview(s.id)}
+            {remainingSuggestions.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className="space-y-2 rounded-xl border border-border p-4"
               >
-                Review
-              </Button>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{suggestion.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {suggestion.description}
+                    </p>
+                  </div>
 
-              {expandedId === s.id && renderSuggestionDetails(s)}
-            </div>
-          ))}
-        </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant={getSeverityVariant(suggestion.severity)}>
+                      {suggestion.severity}
+                    </Badge>
+                    <Badge variant="outline">{suggestion.confidence}%</Badge>
+                  </div>
+                </div>
 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-expanded={expandedId === suggestion.id}
+                  onClick={() => handleReview(suggestion.id)}
+                >
+                  Review
+                </Button>
+
+                {expandedId === suggestion.id &&
+                  renderSuggestionDetails(suggestion)}
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -54,7 +54,7 @@ export function UploadCard({
         ".xlsx",
       ],
     },
-    multiple: true,
+    multiple: false
   });
 
   const dropzoneBase =
