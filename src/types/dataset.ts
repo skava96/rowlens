@@ -15,4 +15,5 @@ export interface AISuggestion {
   confidence: number;
   affectedRows: number[];
   severity: "low" | "medium" | "high";
+  status: "pending" | "approved" | "rejected";
 }

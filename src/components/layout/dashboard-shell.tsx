@@ -138,6 +138,8 @@ export default function DashboardShell() {
               suggestions={workflow.state.suggestions}
               hasDataset={isReady}
               onReviewSuggestion={workflow.reviewSuggestion}
+              onApproveSuggestion={workflow.approveSuggestion}
+              onRejectSuggestion={workflow.rejectSuggestion}
             />
           </section>
         </>

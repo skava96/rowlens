@@ -10,6 +10,7 @@ export const mockSuggestions: AISuggestion[] = [
     confidence: 92,
     affectedRows: [1, 2],
     severity: "high",
+    status: "pending",
   },
   {
     id: "sug-2",
@@ -20,6 +21,7 @@ export const mockSuggestions: AISuggestion[] = [
     confidence: 88,
     affectedRows: [1, 2],
     severity: "medium",
+    status: "pending",
   },
   {
     id: "sug-3",
@@ -30,6 +32,7 @@ export const mockSuggestions: AISuggestion[] = [
     confidence: 85,
     affectedRows: [1, 2, 3],
     severity: "low",
+    status: "pending",
   },
   {
     id: "sug-4",
@@ -40,5 +43,6 @@ export const mockSuggestions: AISuggestion[] = [
     confidence: 90,
     affectedRows: [2, 3],
     severity: "medium",
+    status: "pending",
   },
 ];

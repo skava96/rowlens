@@ -93,14 +93,56 @@ export function useDatasetWorkflow() {
       selectedSuggestionId: prev.selectedSuggestionId === id ? null : id,
       activity: suggestion
         ? [
-            ...prev.activity,
-            {
-              id: crypto.randomUUID(),
-              time: new Date().toLocaleTimeString(),
-              label: `Reviewing: ${suggestion.title}`,
-            },
-          ]
+          ...prev.activity,
+          {
+            id: crypto.randomUUID(),
+            time: new Date().toLocaleTimeString(),
+            label: `Reviewing: ${suggestion.title}`,
+          },
+        ]
         : prev.activity,
+    }));
+  };
+
+  const approveSuggestion = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      suggestions: prev.suggestions.map((suggestion) =>
+        suggestion.id === id
+          ? { ...suggestion, status: "approved" }
+          : suggestion
+      ),
+      selectedSuggestionId:
+        prev.selectedSuggestionId === id ? null : prev.selectedSuggestionId,
+      activity: [
+        ...prev.activity,
+        {
+          id: crypto.randomUUID(),
+          time: new Date().toLocaleTimeString(),
+          label: "Suggestion approved",
+        },
+      ],
+    }));
+  };
+
+  const rejectSuggestion = (id: string) => {
+    setState((prev) => ({
+      ...prev,
+      suggestions: prev.suggestions.map((suggestion) =>
+        suggestion.id === id
+          ? { ...suggestion, status: "rejected" }
+          : suggestion
+      ),
+      selectedSuggestionId:
+        prev.selectedSuggestionId === id ? null : prev.selectedSuggestionId,
+      activity: [
+        ...prev.activity,
+        {
+          id: crypto.randomUUID(),
+          time: new Date().toLocaleTimeString(),
+          label: "Suggestion rejected",
+        },
+      ],
     }));
   };
 
@@ -110,5 +152,7 @@ export function useDatasetWorkflow() {
     setProgress,
     completeUpload,
     reviewSuggestion,
+    approveSuggestion,
+    rejectSuggestion
   };
 }

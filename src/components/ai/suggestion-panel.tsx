@@ -34,22 +34,10 @@ function getSeverityVariant(severity: AISuggestion["severity"]) {
 
 function SuggestionDetails({ suggestion }: { suggestion: AISuggestion }) {
   const details = [
-    {
-      label: "Affected Rows",
-      value: suggestion.affectedRows.map(formatRow).join(", "),
-    },
-    {
-      label: "Type",
-      value: suggestion.type,
-    },
-    {
-      label: "Severity",
-      value: suggestion.severity,
-    },
-    {
-      label: "Confidence",
-      value: `${suggestion.confidence}%`,
-    },
+    { label: "Affected Rows", value: suggestion.affectedRows.map(formatRow).join(", ") },
+    { label: "Type", value: suggestion.type },
+    { label: "Severity", value: suggestion.severity },
+    { label: "Confidence", value: `${suggestion.confidence}%` },
   ];
 
   return (
@@ -85,12 +73,18 @@ function SuggestionCard({
   onReject?: (id: string) => void;
   onReview: (id: string) => void;
 }) {
+  const isResolved =
+    suggestion.status === "approved" || suggestion.status === "rejected";
+
   return (
     <div
       className={cn(
-        "space-y-4 rounded-2xl border border-border bg-background p-4 transition-colors",
-        isExpanded && "border-sky-300 bg-sky-50/40",
-        isPriority && "border-amber-200 bg-amber-50/20"
+        "space-y-4 rounded-2xl border bg-background p-4 transition-colors",
+        suggestion.status === "approved" && "border-emerald-200 bg-emerald-50/40",
+        suggestion.status === "rejected" && "border-red-200 bg-red-50/30",
+        suggestion.status === "pending" && isExpanded && "border-sky-300 bg-sky-50/40",
+        suggestion.status === "pending" && isPriority && !isExpanded && "border-amber-200 bg-amber-50/20",
+        suggestion.status === "pending" && !isExpanded && !isPriority && "border-border"
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -100,7 +94,19 @@ function SuggestionCard({
               {suggestion.title}
             </p>
 
-            {isExpanded && (
+            <Badge
+              variant={
+                suggestion.status === "approved"
+                  ? "secondary"
+                  : suggestion.status === "rejected"
+                  ? "destructive"
+                  : "outline"
+              }
+            >
+              {suggestion.status}
+            </Badge>
+
+            {isExpanded && suggestion.status === "pending" && (
               <Badge variant="outline" className="gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 Reviewing
@@ -124,7 +130,7 @@ function SuggestionCard({
       <div className="flex flex-wrap gap-2">
         {isPriority && (
           <>
-            <Button size="sm" onClick={() => onApprove?.(suggestion.id)}>
+            <Button size="sm" onClick={() => onApprove?.(suggestion.id)} disabled={isResolved}>
               Approve
             </Button>
 
@@ -132,6 +138,7 @@ function SuggestionCard({
               size="sm"
               variant="destructive"
               onClick={() => onReject?.(suggestion.id)}
+              disabled={isResolved}
             >
               Reject
             </Button>
@@ -184,12 +191,25 @@ export default function SuggestionPanel({
     );
   }
 
-  const priority = suggestions[0];
-  const remainingSuggestions = suggestions.slice(1);
+  const pendingSuggestions = suggestions.filter((s) => s.status === "pending");
+  const resolvedSuggestions = suggestions.filter((s) => s.status !== "pending");
+
+  const priority = pendingSuggestions[0];
+  const remainingPendingSuggestions = pendingSuggestions.slice(1);
 
   const handleReview = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
     onReviewSuggestion?.(id);
+  };
+
+  const handleApprove = (id: string) => {
+    setExpandedId(null);
+    onApproveSuggestion?.(id);
+  };
+
+  const handleReject = (id: string) => {
+    setExpandedId(null);
+    onRejectSuggestion?.(id);
   };
 
   return (
@@ -206,22 +226,50 @@ export default function SuggestionPanel({
       </CardHeader>
 
       <CardContent className="space-y-6 pt-0">
-        <SuggestionCard
-          suggestion={priority}
-          isPriority
-          isExpanded={expandedId === priority.id}
-          onApprove={onApproveSuggestion}
-          onReject={onRejectSuggestion}
-          onReview={handleReview}
-        />
+        {priority ? (
+          <SuggestionCard
+            suggestion={priority}
+            isPriority
+            isExpanded={expandedId === priority.id}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onReview={handleReview}
+          />
+        ) : (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+            <p className="text-sm font-semibold text-emerald-900">
+              All suggestions reviewed
+            </p>
+            <p className="mt-1 text-sm text-emerald-800">
+              There are no pending AI recommendations for this dataset.
+            </p>
+          </div>
+        )}
 
-        {remainingSuggestions.length > 0 && (
+        {remainingPendingSuggestions.length > 0 && (
           <div className="space-y-5">
             <p className="text-sm font-semibold text-foreground">
-              All Suggestions
+              Pending Suggestions
             </p>
 
-            {remainingSuggestions.map((suggestion) => (
+            {remainingPendingSuggestions.map((suggestion) => (
+              <SuggestionCard
+                key={suggestion.id}
+                suggestion={suggestion}
+                isExpanded={expandedId === suggestion.id}
+                onReview={handleReview}
+              />
+            ))}
+          </div>
+        )}
+
+        {resolvedSuggestions.length > 0 && (
+          <div className="space-y-5">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Resolved Suggestions
+            </p>
+
+            {resolvedSuggestions.map((suggestion) => (
               <SuggestionCard
                 key={suggestion.id}
                 suggestion={suggestion}
