@@ -14,6 +14,7 @@ export function useDatasetWorkflow() {
     status: "idle",
     rows: [],
     suggestions: [],
+    selectedSuggestionId: null,
     activity: [],
   });
 
@@ -27,6 +28,7 @@ export function useDatasetWorkflow() {
       status: "uploading",
       rows: [],
       suggestions: [],
+      selectedSuggestionId: null,
       progress: 0,
       error: undefined,
       activity: [
@@ -45,7 +47,6 @@ export function useDatasetWorkflow() {
       progress,
     }));
 
-    // Simulate processing transition
     if (progress >= 100) {
       setState((prev) => ({
         ...prev,
@@ -69,6 +70,7 @@ export function useDatasetWorkflow() {
         status: "ready",
         rows: loadMockDataset(),
         suggestions: mockSuggestions,
+        selectedSuggestionId: null,
         progress: 100,
         activity: [
           ...prev.activity,
@@ -82,10 +84,31 @@ export function useDatasetWorkflow() {
     }, 1200);
   };
 
+  const reviewSuggestion = (id: string) => {
+    const suggestion = state.suggestions.find((item) => item.id === id);
+
+    setState((prev) => ({
+      ...prev,
+      status: "reviewing",
+      selectedSuggestionId: prev.selectedSuggestionId === id ? null : id,
+      activity: suggestion
+        ? [
+            ...prev.activity,
+            {
+              id: crypto.randomUUID(),
+              time: new Date().toLocaleTimeString(),
+              label: `Reviewing: ${suggestion.title}`,
+            },
+          ]
+        : prev.activity,
+    }));
+  };
+
   return {
     state,
     startUpload,
     setProgress,
     completeUpload,
+    reviewSuggestion,
   };
 }

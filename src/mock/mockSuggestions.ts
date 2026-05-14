@@ -8,7 +8,7 @@ export const mockSuggestions: AISuggestion[] = [
     description:
       "Some email fields do not match standard email formatting rules and may fail validation.",
     confidence: 92,
-    affectedRows: [1, 2, 5],
+    affectedRows: [1, 2],
     severity: "high",
   },
   {
@@ -18,7 +18,7 @@ export const mockSuggestions: AISuggestion[] = [
     description:
       "Multiple rows appear to contain duplicate customer entries based on name and email similarity.",
     confidence: 88,
-    affectedRows: [4, 7],
+    affectedRows: [1, 2],
     severity: "medium",
   },
   {
@@ -26,9 +26,9 @@ export const mockSuggestions: AISuggestion[] = [
     type: "validation",
     title: "Country values need standardization",
     description:
-      "Country field contains inconsistent values (e.g., USA, U.S.A, United States).",
+      "Country field contains inconsistent values such as US, United States, and usa.",
     confidence: 85,
-    affectedRows: [3, 8, 9],
+    affectedRows: [1, 2, 3],
     severity: "low",
   },
   {
@@ -36,9 +36,9 @@ export const mockSuggestions: AISuggestion[] = [
     type: "missing",
     title: "Missing required fields detected",
     description:
-      "Several rows are missing required fields such as signup date or country.",
+      "Several rows are missing required fields such as name or signup date.",
     confidence: 90,
-    affectedRows: [6, 10, 11, 12],
+    affectedRows: [2, 3],
     severity: "medium",
   },
 ];

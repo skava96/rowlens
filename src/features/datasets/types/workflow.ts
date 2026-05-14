@@ -24,6 +24,8 @@ export interface DatasetWorkflowState {
   rows: DatasetRowView[];
   suggestions: AISuggestion[];
 
+  selectedSuggestionId: string | null;
+
   activity: DatasetActivity[];
 
   progress?: number;
