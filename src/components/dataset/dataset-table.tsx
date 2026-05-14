@@ -10,10 +10,10 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import { mockDataset } from "@/mock/mockDataset"
+import { DatasetRow } from "@/types/dataset";
 
 
-function getValidationState(row: (typeof mockDataset)[number]) {
+function getValidationState(row: DatasetRow) {
   const nameMissing = !row.name?.trim()
   const signupMissing = !row.signupDate?.trim()
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email || "")
@@ -45,7 +45,7 @@ function getValidationState(row: (typeof mockDataset)[number]) {
   }
 }
 
-export function DatasetTable() {
+export function DatasetTable({ rows }: { rows: DatasetRow[] }) {
   return (
     <div className="overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-sm">
       <Table className="min-w-full text-sm">
@@ -73,7 +73,7 @@ export function DatasetTable() {
         </TableHeader>
 
         <TableBody>
-          {mockDataset.map((row) => {
+          {rows.map((row) => {
             const validation = getValidationState(row)
             const isMissingName = validation.field === "name"
             const isMissingDate = validation.field === "signupDate"
