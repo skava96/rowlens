@@ -1,7 +1,9 @@
-﻿"use client"
-import { AlertTriangle, CheckCircle, XCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
+﻿"use client";
+
+import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
 import {
   Table,
   TableHeader,
@@ -9,61 +11,36 @@ import {
   TableRow,
   TableHead,
   TableCell,
-} from "@/components/ui/table"
-import { mockDataset } from "@/mock/mockDataset"
+} from "@/components/ui/table";
 
+import { DatasetRowView } from "@/features/datasets/adapters/datasetAdapter";
 
-function getValidationState(row: (typeof mockDataset)[number]) {
-  const nameMissing = !row.name?.trim()
-  const signupMissing = !row.signupDate?.trim()
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email || "")
-
-  if (nameMissing || signupMissing) {
-    return {
-      state: "missing" as const, field: nameMissing ? "name" : "signupDate", validation: {
-        icon: <AlertTriangle className="h-3.5 w-3.5" />,
-        text: "Needs Review",
-        color: "bg-orange-100",
-      }
-    }
-  }
-  if (!emailValid) {
-    return {
-      state: "invalid" as const, field: "email", validation: {
-        icon: <XCircle className="h-3.5 w-3.5" />,
-        text: "Error",
-        color: "bg-red-100",
-      }
-    }
-  }
-  return {
-    state: "ok" as const, field: undefined, validation: {
-      icon: <CheckCircle className="h-3.5 w-3.5" />,
-      text: "Valid",
-      color: "bg-green-100",
-    }
-  }
+interface DatasetTableProps {
+  rows: DatasetRowView[];
+  highlightedRowIds?: number[];
 }
 
-export function DatasetTable() {
+export function DatasetTable({
+  rows,
+  highlightedRowIds = [],
+}: DatasetTableProps) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-sm">
-      <Table className="min-w-full text-sm">
-        <TableHeader className="border-b border-border/70 bg-slate-50/95">
-          <TableRow className="!border-0">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-background shadow-sm">
+      <Table className="min-w-[860px] text-sm">
+        <TableHeader className="border-b border-border bg-slate-50">
+          <TableRow className="border-0 hover:bg-transparent">
             {[
-              { label: "Name", width: "w-[24%]" },
-              { label: "Email", width: "w-[30%]" },
+              { label: "Name", width: "w-[22%]" },
+              { label: "Email", width: "w-[28%]" },
               { label: "Country", width: "w-[18%]" },
-              { label: "Signup date", width: "w-[18%]" },
-              { label: "Status", width: "w-[10%]" },
-              { label: "Validation", width: "w-[10%]" },
+              { label: "Signup Date", width: "w-[16%]" },
+              { label: "Validation", width: "w-[16%]" },
             ].map((column) => (
               <TableHead
                 key={column.label}
                 className={cn(
                   column.width,
-                  "sticky top-0 z-10 px-3 py-2 text-left text-xs uppercase tracking-[0.18em] text-slate-500",
+                  "sticky top-0 z-10 px-4 py-3 text-left text-xs uppercase tracking-[0.16em] text-muted-foreground"
                 )}
               >
                 {column.label}
@@ -73,25 +50,29 @@ export function DatasetTable() {
         </TableHeader>
 
         <TableBody>
-          {mockDataset.map((row) => {
-            const validation = getValidationState(row)
-            const isMissingName = validation.field === "name"
-            const isMissingDate = validation.field === "signupDate"
-            const isInvalidEmail = validation.field === "email"
+          {rows.map((row) => {
+            const isHighlighted = highlightedRowIds.includes(row.id);
+            const isMissingName = row.validationField === "name";
+            const isMissingDate = row.validationField === "signupDate";
+            const isInvalidEmail = row.validationField === "email";
 
             return (
               <TableRow
                 key={row.id}
-                className="group border-b border-border/70 transition-colors hover:bg-muted/50"
+                className={cn(
+                  "border-b border-border/60 transition-colors hover:bg-muted/40",
+                  isHighlighted && "bg-sky-50/40"
+                )}
               >
                 <TableCell
                   className={cn(
-                    "px-3 py-2 align-middle text-foreground",
-                    isMissingName && "rounded-r-2xl bg-amber-100/75 text-amber-950",
+                    "border-l-2 border-l-transparent px-4 py-3 align-middle text-foreground",
+                    isHighlighted && "border-l-sky-500",
+                    isMissingName && "bg-amber-50 text-amber-950"
                   )}
                 >
                   {row.name || (
-                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-950">
+                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900">
                       Missing value
                     </span>
                   )}
@@ -99,66 +80,63 @@ export function DatasetTable() {
 
                 <TableCell
                   className={cn(
-                    "px-3 py-2 align-middle text-foreground",
-                    isInvalidEmail && "rounded-r-2xl bg-amber-100/75 text-amber-950",
+                    "px-4 py-3 align-middle text-foreground",
+                    isInvalidEmail && "bg-red-50 text-red-950"
                   )}
                 >
-                  {row.email}
-                  {isInvalidEmail ? (
-                    <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-900">
-                      Invalid email
-                    </span>
-                  ) : null}
+                  <div className="flex flex-col gap-1.5">
+                    <span>{row.email}</span>
+
+                    {isInvalidEmail && (
+                      <span className="inline-flex w-fit rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-700">
+                        Invalid email
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
 
-                <TableCell className="px-3 py-2 align-middle text-foreground">
+                <TableCell className="px-4 py-3 align-middle text-foreground">
                   {row.country}
                 </TableCell>
 
                 <TableCell
                   className={cn(
-                    "px-3 py-2 align-middle text-foreground",
-                    isMissingDate && "rounded-r-2xl bg-amber-100/75 text-amber-950",
+                    "px-4 py-3 align-middle text-foreground",
+                    isMissingDate && "bg-amber-50 text-amber-950"
                   )}
                 >
                   {row.signupDate || (
-                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-950">
+                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900">
                       Missing value
                     </span>
                   )}
                 </TableCell>
 
-                <TableCell className="px-3 py-2 align-middle">
-                  {validation.state === "invalid" ? (
-                    <Badge
-                      variant="destructive"
-                      className="inline-flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/10 px-2 py-1 text-[11px] font-semibold text-destructive"
-                    >
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Invalid
-                    </Badge>
-                  ) : validation.state === "missing" ? (
-                    <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
-                      Review
-                    </span>
-                  ) : (
-                    <span className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                      Ready
-                    </span>
-                  )}
+                <TableCell className="px-4 py-3 align-middle">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    {row.validationState === "invalid" ? (
+                      <>
+                        <XCircle className="h-4 w-4 shrink-0 text-red-600" />
+                        <span className="text-red-700">Invalid format</span>
+                      </>
+                    ) : row.validationState === "missing" ? (
+                      <>
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                        <span className="text-amber-700">Needs review</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <span className="text-emerald-700">Valid</span>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
-
-                <TableCell>
-                  <span className={cn("flex items-center gap-2 ml-2 text-sm font-medium", validation?.validation?.color)}>
-                    {validation?.validation?.icon}{validation?.validation?.text}
-                  </span>
-                </TableCell>
-
               </TableRow>
-            )
+            );
           })}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

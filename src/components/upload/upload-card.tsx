@@ -1,257 +1,203 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, FileText, X, Loader2, CheckCircle, AlertCircle, FileSpreadsheet, Upload } from "lucide-react";
-import { Skeleton } from "../ui/skeleton";
 
-type UploadState = "idle" | "dragging" | "uploading" | "uploaded" | "error";
+import {
+  UploadCloud,
+  FileSpreadsheet,
+  Upload,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
 
-interface UploadedFile {
-  file: File;
-  state: UploadState;
-  progress?: number;
-}
+type Props = {
+  onUploadStart: (fileName: string) => void;
+  onUploadProgress?: (progress: number) => void;
+  onUploadComplete: () => void;
+};
 
-export function UploadCard() {
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
+export function UploadCard({
+  onUploadStart,
+  onUploadProgress,
+  onUploadComplete,
+}: Props) {
+  const [uploading, setUploading] = useState(false);
 
-  const simulateUpload = (files: File[]) => {
-    setUploadState("uploading");
+  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
 
-    files.forEach((file, index) => {
-      const newFile: UploadedFile = { file, state: "uploading", progress: 0 };
-      setUploadedFiles((prev) => [...prev, newFile]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-      // Simulate upload progress
-      const interval = setInterval(() => {
-        setUploadedFiles((prev) =>
-          prev.map((f, i) =>
-            i === prev.length - files.length + index
-              ? { ...f, progress: Math.min((f.progress || 0) + 10, 100) }
-              : f
-          )
-        );
-      }, 200);
-
-      setTimeout(() => {
-        clearInterval(interval);
-        setUploadedFiles((prev) =>
-          prev.map((f, i) =>
-            i === prev.length - files.length + index
-              ? { ...f, state: "uploaded" }
-              : f
-          )
-        );
-        setUploadState("uploaded");
-      }, 2000);
-    });
+  const clearUploadInterval = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   };
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setUploadState("uploading");
-    simulateUpload(acceptedFiles);
+  useEffect(() => {
+    return () => {
+      clearUploadInterval();
+    };
   }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+
+      if (!file || uploading) return;
+
+      clearUploadInterval();
+
+      setUploading(true);
+
+      setUploadedFile(file.name);
+
+      onUploadStart(file.name);
+
+      let progress = 0;
+
+      intervalRef.current = setInterval(() => {
+        progress += 20;
+
+        onUploadProgress?.(progress);
+
+        if (progress >= 100) {
+          clearUploadInterval();
+
+          onUploadComplete();
+
+          setUploading(false);
+        }
+      }, 250);
+    },
+    [
+      uploading,
+      onUploadStart,
+      onUploadProgress,
+      onUploadComplete,
+    ]
+  );
+
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    open,
+  } = useDropzone({
     onDrop,
+    noClick: true,
+    multiple: false,
     accept: {
       "text/csv": [".csv"],
       "application/vnd.ms-excel": [".xls"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
     },
-    multiple: true,
   });
 
-  const removeFile = (index: number) => {
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+  const dropzoneBase =
+    "mt-5 rounded-xl border-2 border-dashed transition-colors p-5 sm:p-7 text-center";
 
-  const getDropzoneStyles = () => {
-    const baseStyles = "mt-6 cursor-pointer rounded-xl border-dashed transition-colors p-6 sm:p-10 text-center border-2";
-
-    if (uploadState === "uploading") {
-      return `${baseStyles} border-primary bg-muted/30`;
-    }
-
-    if (isDragActive) {
-      return `${baseStyles} border-primary bg-muted/50`;
-    }
-
-    if (uploadState === "uploaded") {
-      return `${baseStyles} border-emerald-500 bg-muted/30`;
-    }
-
-    if (uploadState === "error") {
-      return `${baseStyles} border-destructive bg-muted/30`;
-    }
-
-    // idle state
-    return `${baseStyles} border-muted-foreground/30 bg-muted/30 hover:bg-muted/50`;
-  };
-
-  const getStateIcon = () => {
-    if (uploadState === "uploading") {
-      return <Loader2 className="mx-auto h-12 w-12 text-primary animate-spin" />;
-    }
-
-    if (uploadState === "uploaded") {
-      return <CheckCircle className="mx-auto h-12 w-12 text-emerald-600" />;
-    }
-
-    if (uploadState === "error") {
-      return <AlertCircle className="mx-auto h-12 w-12 text-destructive" />;
-    }
-
-    return <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />;
-  };
-
-  const getStateText = () => {
-    if (uploadState === "uploading") {
-      return "Uploading files...";
-    }
-
-    if (uploadState === "uploaded") {
-      return "Files uploaded successfully!";
-    }
-
-    if (uploadState === "error") {
-      return "Upload failed. Please try again.";
-    }
-
-    if (isDragActive) {
-      return "Drop the files here...";
-    }
-
-    return "Drop CSV or Excel files here";
-  };
-
-  const getStateBadge = (state: UploadState) => {
-    if (state === "uploaded") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-          <CheckCircle className="h-3 w-3" />
-          Success
-        </span>
-      );
-    }
-
-    if (state === "error") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
-          <AlertCircle className="h-3 w-3" />
-          Error
-        </span>
-      );
-    }
-
-    return null;
-  };
+  const dropzoneClass = isDragActive
+    ? `${dropzoneBase} border-primary bg-muted/50`
+    : `${dropzoneBase} border-muted-foreground/30 bg-muted/30 hover:bg-muted/50`;
 
   return (
-    <section className="w-full rounded-xl border border-border/80 bg-card p-4 sm:p-6">
+    <section className="w-full rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Upload className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground">Upload Dataset</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Upload CSV or Excel datasets to begin AI-assisted cleaning and validation.
+          <Upload className="h-5 w-5 text-muted-foreground" />
+
+          <div>
+            <h1 className="text-lg font-semibold sm:text-xl">
+              Upload Dataset
+            </h1>
+
+            <p className="text-sm text-muted-foreground">
+              Upload CSV or Excel datasets for AI-assisted validation and cleaning.
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 whitespace-nowrap">
-          Upload file
+
+        <button
+          type="button"
+          onClick={open}
+          disabled={uploading}
+          className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            "Upload file"
+          )}
         </button>
       </div>
 
-      <div {...getRootProps()} className={getDropzoneStyles()}>
+      {/* Dropzone */}
+      <div
+        {...getRootProps()}
+        className={dropzoneClass}
+      >
         <input {...getInputProps()} />
-        {getStateIcon()}
-        <p className="mt-4 text-lg font-medium text-foreground">
-          {getStateText()}
+
+        <UploadCloud className="mx-auto h-9 w-9 text-muted-foreground" />
+
+        <p className="mt-4 text-lg font-medium">
+          {isDragActive
+            ? "Drop dataset here..."
+            : "Drop CSV or Excel dataset here"}
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">or click to browse files</p>
+
+        <p className="mt-2 text-sm text-muted-foreground">
+          or use the upload button above
+        </p>
       </div>
 
-      {uploadedFiles.length > 0 && (
-        <div className="mt-6 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Uploaded Files</h3>
-          <div className="space-y-2">
-            {uploadState === "uploading" && uploadedFiles.some(f => f.state === "uploading") && (
-              <div className="flex items-center justify-between rounded-xl bg-background/95 p-4 border border-border/60">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
-                  <div className="flex-1 space-y-2 min-w-0">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-1.5 w-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                  <Skeleton className="h-6 w-6 rounded-full" />
-                </div>
-              </div>
+      {/* Upload Context */}
+      {uploadedFile && (
+        <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4">
+          <div className="flex items-start gap-3">
+            {uploading ? (
+              <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
             )}
-            {uploadedFiles.map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between rounded-xl bg-background/95 p-4 border border-border/60"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{file.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(file.file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                    {file.state === "uploading" && file.progress !== undefined && (
-                      <div className="mt-2 w-full bg-muted rounded-full h-1.5">
-                        <div
-                          className="bg-primary h-1.5 rounded-full transition-all duration-300"
-                          style={{ width: `${file.progress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                  {getStateBadge(file.state)}
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* File Metadata Preview */}
-      {uploadedFiles.some(f => f.state === "uploaded") && (
-        <div className="mt-6 rounded-xl bg-background/95 p-4 border border-border/60">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">customers.csv</p>
-              <p className="text-xs text-muted-foreground">2.4 MB • uploaded just now</p>
+              <p className="truncate text-sm font-medium">
+                {uploadedFile}
+              </p>
+
+              <p className="text-xs text-muted-foreground">
+                {uploading
+                  ? "Uploading and validating dataset..."
+                  : "Dataset uploaded successfully"}
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Supported Formats Section */}
-      <div className="mt-6 rounded-xl bg-muted/30 p-4 border border-border/40">
+      {/* Supported formats */}
+      <div className="mt-6 rounded-xl border border-border/40 bg-muted/30 p-4">
         <div className="flex items-start gap-3">
-          <FileSpreadsheet className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">Supported formats: CSV, XLSX</p>
-            <p className="text-xs text-muted-foreground">Maximum size: 10MB</p>
+          <FileSpreadsheet className="mt-0.5 h-5 w-5 text-muted-foreground" />
+
+          <div>
+            <p className="text-sm font-medium">
+              Supported formats: CSV, XLSX
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              Maximum file size: 10MB
+            </p>
           </div>
         </div>
       </div>
