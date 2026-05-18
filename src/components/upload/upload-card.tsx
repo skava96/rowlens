@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { useDropzone } from "react-dropzone";
-
+import { useCallback, useState } from "react";
+import { FileRejection, useDropzone } from "react-dropzone";
 import {
+  AlertTriangle,
   UploadCloud,
   FileSpreadsheet,
   Upload,
@@ -13,85 +12,66 @@ import {
 } from "lucide-react";
 
 type Props = {
-  onUploadStart: (fileName: string) => void;
-  onUploadProgress?: (progress: number) => void;
-  onUploadComplete: () => void;
+  onUploadStart: (file: File) => void;
+  isUploading?: boolean;
 };
 
-export function UploadCard({
-  onUploadStart,
-  onUploadProgress,
-  onUploadComplete,
-}: Props) {
-  const [uploading, setUploading] = useState(false);
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+function getUploadError(rejection: FileRejection) {
+  const firstError = rejection.errors[0];
+
+  if (!firstError) return "File could not be uploaded.";
+
+  if (firstError.code === "file-too-large") {
+    return "File is too large. Maximum allowed size is 10MB.";
+  }
+
+  if (firstError.code === "file-invalid-type") {
+    return "Unsupported file type. Please upload a CSV or XLSX file.";
+  }
+
+  return firstError.message;
+}
+
+export function UploadCard({ onUploadStart, isUploading = false }: Props) {
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
-
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearUploadInterval = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      clearUploadInterval();
-    };
-  }, []);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
 
-      if (!file || uploading) return;
+      if (!file || isUploading) return;
 
-      clearUploadInterval();
-
-      setUploading(true);
-
+      setUploadError(null);
       setUploadedFile(file.name);
 
-      onUploadStart(file.name);
-
-      let progress = 0;
-
-      intervalRef.current = setInterval(() => {
-        progress += 20;
-
-        onUploadProgress?.(progress);
-
-        if (progress >= 100) {
-          clearUploadInterval();
-
-          onUploadComplete();
-
-          setUploading(false);
-        }
-      }, 250);
+      onUploadStart(file);
     },
-    [
-      uploading,
-      onUploadStart,
-      onUploadProgress,
-      onUploadComplete,
-    ]
+    [isUploading, onUploadStart]
   );
 
-  const {
-    getRootProps,
-    getInputProps,
-    isDragActive,
-    open,
-  } = useDropzone({
+  const onDropRejected = useCallback((fileRejections: FileRejection[]) => {
+    setUploadedFile(null);
+
+    const firstRejection = fileRejections[0];
+
+    setUploadError(
+      firstRejection
+        ? getUploadError(firstRejection)
+        : "Upload failed. Please try again."
+    );
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
+    onDropRejected,
     noClick: true,
     multiple: false,
+    maxSize: MAX_FILE_SIZE_BYTES,
     accept: {
       "text/csv": [".csv"],
-      "application/vnd.ms-excel": [".xls"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
         ".xlsx",
       ],
@@ -99,104 +79,120 @@ export function UploadCard({
   });
 
   const dropzoneBase =
-    "mt-5 rounded-xl border-2 border-dashed transition-colors p-5 sm:p-7 text-center";
+    "relative rounded-xl border border-dashed transition-colors px-5 py-8 text-center";
 
   const dropzoneClass = isDragActive
     ? `${dropzoneBase} border-primary bg-muted/50`
-    : `${dropzoneBase} border-muted-foreground/30 bg-muted/30 hover:bg-muted/50`;
+    : `${dropzoneBase} border-border bg-muted/10 hover:bg-muted/30`;
 
   return (
-    <section className="w-full rounded-2xl border border-border/80 bg-card p-4 shadow-sm sm:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Upload className="h-5 w-5 text-muted-foreground" />
-
-          <div>
-            <h1 className="text-lg font-semibold sm:text-xl">
-              Upload Dataset
-            </h1>
-
-            <p className="text-sm text-muted-foreground">
-              Upload CSV or Excel datasets for AI-assisted validation and cleaning.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={open}
-          disabled={uploading}
-          className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {uploading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            "Upload file"
-          )}
-        </button>
-      </div>
-
-      {/* Dropzone */}
-      <div
-        {...getRootProps()}
-        className={dropzoneClass}
-      >
-        <input {...getInputProps()} />
-
-        <UploadCloud className="mx-auto h-9 w-9 text-muted-foreground" />
-
-        <p className="mt-4 text-lg font-medium">
-          {isDragActive
-            ? "Drop dataset here..."
-            : "Drop CSV or Excel dataset here"}
-        </p>
-
-        <p className="mt-2 text-sm text-muted-foreground">
-          or use the upload button above
-        </p>
-      </div>
-
-      {/* Upload Context */}
-      {uploadedFile && (
-        <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4">
+    <section className="w-full rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr] lg:items-stretch">
+        <div className="flex h-full flex-col justify-between gap-3">
           <div className="flex items-start gap-3">
-            {uploading ? (
-              <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />
-            ) : (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-            )}
+            <div className="rounded-xl border border-border bg-muted/30 p-2">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+            </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {uploadedFile}
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                {uploading
-                  ? "Uploading and validating dataset..."
-                  : "Dataset uploaded successfully"}
+            <div>
+              <h1 className="text-lg font-semibold">Upload Dataset</h1>
+              <p className="mt-1 max-w-xl text-sm leading-5 text-muted-foreground">
+                Upload CSV or Excel datasets for AI-assisted validation and
+                cleaning.
               </p>
             </div>
           </div>
+
+          <div className="space-y-3">
+            {uploadedFile && (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3">
+                <div className="flex items-start gap-3">
+                  {isUploading ? (
+                    <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {uploadedFile}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isUploading
+                        ? "Uploading and validating dataset..."
+                        : "Dataset selected successfully"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
+
+                  <div>
+                    <p className="text-sm font-medium text-destructive">
+                      Upload failed
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {uploadError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+              <div className="flex items-start gap-3">
+                <FileSpreadsheet className="mt-0.5 h-4 w-4 text-muted-foreground" />
+
+                <div>
+                  <p className="text-sm font-medium">
+                    Supported formats: CSV, XLSX
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Maximum file size: 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Supported formats */}
-      <div className="mt-6 rounded-xl border border-border/40 bg-muted/30 p-4">
-        <div className="flex items-start gap-3">
-          <FileSpreadsheet className="mt-0.5 h-5 w-5 text-muted-foreground" />
+        <div {...getRootProps()} className={dropzoneClass}>
+          <input {...getInputProps()} />
 
-          <div>
-            <p className="text-sm font-medium">
-              Supported formats: CSV, XLSX
+          <button
+            type="button"
+            onClick={open}
+            disabled={isUploading}
+            className="absolute right-4 top-4 inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Upload file"
+            )}
+          </button>
+
+          <div className="flex h-full min-h-[140px] flex-col items-center justify-center pt-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Drag & Drop
             </p>
 
-            <p className="text-xs text-muted-foreground">
-              Maximum file size: 10MB
+            <UploadCloud className="mt-3 h-10 w-10 text-muted-foreground" />
+
+            <p className="mt-2 text-base font-semibold">
+              {isDragActive ? "Drop dataset here..." : "Drop dataset here"}
+            </p>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              or browse from your computer
             </p>
           </div>
         </div>

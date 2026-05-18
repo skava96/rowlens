@@ -1,7 +1,7 @@
 import { AISuggestion } from "@/types/dataset";
 
 export const mockSuggestions: AISuggestion[] = [
-  {
+  /* {
     id: "sug-1",
     type: "validation",
     title: "Invalid email formats detected",
@@ -44,5 +44,5 @@ export const mockSuggestions: AISuggestion[] = [
     affectedRows: [2, 3],
     severity: "medium",
     status: "pending",
-  },
+  }, */
 ];

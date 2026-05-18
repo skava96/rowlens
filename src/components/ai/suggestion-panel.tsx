@@ -1,13 +1,12 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
@@ -22,6 +21,7 @@ type Props = {
   onApproveSuggestion?: (id: string) => void;
   onRejectSuggestion?: (id: string) => void;
   onReviewSuggestion?: (id: string) => void;
+  onClearReview?: () => void;
 };
 
 const formatRow = (row: number) => `#${row}`;
@@ -34,21 +34,33 @@ function getSeverityVariant(severity: AISuggestion["severity"]) {
 
 function SuggestionDetails({ suggestion }: { suggestion: AISuggestion }) {
   const details = [
-    { label: "Affected Rows", value: suggestion.affectedRows.map(formatRow).join(", ") },
-    { label: "Type", value: suggestion.type },
-    { label: "Severity", value: suggestion.severity },
-    { label: "Confidence", value: `${suggestion.confidence}%` },
+    {
+      label: "Affected rows",
+      value: suggestion.affectedRows.map(formatRow).join(", "),
+    },
+    {
+      label: "Type",
+      value: suggestion.type,
+    },
+    {
+      label: "Severity",
+      value: suggestion.severity,
+    },
+    {
+      label: "Confidence",
+      value: `${suggestion.confidence}%`,
+    },
   ];
 
   return (
-    <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="mt-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {details.map((item) => (
           <div key={item.label}>
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
               {item.label}
             </p>
-            <p className="mt-1 text-sm font-medium capitalize text-foreground">
+            <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
               {item.value}
             </p>
           </div>
@@ -79,18 +91,27 @@ function SuggestionCard({
   return (
     <div
       className={cn(
-        "space-y-4 rounded-2xl border bg-background p-4 transition-colors",
-        suggestion.status === "approved" && "border-emerald-200 bg-emerald-50/40",
-        suggestion.status === "rejected" && "border-red-200 bg-red-50/30",
-        suggestion.status === "pending" && isExpanded && "border-sky-300 bg-sky-50/40",
-        suggestion.status === "pending" && isPriority && !isExpanded && "border-amber-200 bg-amber-50/20",
-        suggestion.status === "pending" && !isExpanded && !isPriority && "border-border"
+        "rounded-xl border bg-background px-4 py-3 transition-colors",
+        suggestion.status === "approved" &&
+        "border-emerald-100 bg-emerald-50/10",
+        suggestion.status === "rejected" && "border-rose-100 bg-rose-50/10",
+        suggestion.status === "pending" &&
+        isExpanded &&
+        "border-sky-300 bg-sky-50/30",
+        suggestion.status === "pending" &&
+        isPriority &&
+        !isExpanded &&
+        "border-amber-200 bg-amber-50/20",
+        suggestion.status === "pending" &&
+        !isExpanded &&
+        !isPriority &&
+        "border-border"
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-sm font-semibold leading-5 text-foreground">
               {suggestion.title}
             </p>
 
@@ -99,63 +120,71 @@ function SuggestionCard({
                 suggestion.status === "approved"
                   ? "secondary"
                   : suggestion.status === "rejected"
-                  ? "destructive"
-                  : "outline"
+                    ? "destructive"
+                    : "outline"
               }
+              className="h-5 px-2 text-[11px]"
             >
+              {suggestion.status === "approved" && (
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+              )}
+              {suggestion.status === "rejected" && (
+                <XCircle className="mr-1 h-3 w-3" />
+              )}
               {suggestion.status}
             </Badge>
-
-            {isExpanded && suggestion.status === "pending" && (
-              <Badge variant="outline" className="gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                Reviewing
-              </Badge>
-            )}
           </div>
 
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          <p className="mt-1 text-sm leading-5 text-muted-foreground">
             {suggestion.description}
           </p>
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
-          <Badge variant={getSeverityVariant(suggestion.severity)}>
+          <Badge
+            variant={getSeverityVariant(suggestion.severity)}
+            className="h-5 px-2 text-[11px]"
+          >
             {suggestion.severity}
           </Badge>
-          <Badge variant="outline">{suggestion.confidence}%</Badge>
+          <Badge variant="outline" className="h-5 px-2 text-[11px]">
+            {suggestion.confidence}%
+          </Badge>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {isPriority && (
-          <>
-            <Button size="sm" onClick={() => onApprove?.(suggestion.id)} disabled={isResolved}>
-              Approve
-            </Button>
+      {!isResolved && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            onClick={() => onApprove?.(suggestion.id)}
+            aria-label={`Approve suggestion: ${suggestion.title}`}
+          >
+            Approve
+          </Button>
 
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => onReject?.(suggestion.id)}
-              disabled={isResolved}
-            >
-              Reject
-            </Button>
-          </>
-        )}
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => onReject?.(suggestion.id)}
+            aria-label={`Reject suggestion: ${suggestion.title}`}
+          >
+            Reject
+          </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          aria-expanded={isExpanded}
-          onClick={() => onReview(suggestion.id)}
-        >
-          {isExpanded ? "Hide details" : "Review"}
-        </Button>
-      </div>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-expanded={isExpanded}
+            aria-label={`Review suggestion details: ${suggestion.title}`}
+            onClick={() => onReview(suggestion.id)}
+          >
+            {isExpanded ? "Hide details" : "Review"}
+          </Button>
+        </div>
+      )}
 
-      {isExpanded && <SuggestionDetails suggestion={suggestion} />}
+      {isExpanded && !isResolved && <SuggestionDetails suggestion={suggestion} />}
     </div>
   );
 }
@@ -166,15 +195,16 @@ export default function SuggestionPanel({
   onApproveSuggestion,
   onRejectSuggestion,
   onReviewSuggestion,
+  onClearReview,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!hasDataset) {
     return (
-      <Card className="p-8 text-center">
-        <AlertTriangle className="mx-auto h-10 w-10 text-muted-foreground" />
-        <CardTitle className="mt-4">No dataset uploaded yet</CardTitle>
-        <CardDescription className="mt-2">
+      <Card className="p-6 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
+        <CardTitle className="mt-3">No dataset uploaded yet</CardTitle>
+        <CardDescription className="mt-1">
           Upload a file to see AI suggestions.
         </CardDescription>
       </Card>
@@ -184,22 +214,34 @@ export default function SuggestionPanel({
   if (!suggestions.length) {
     return (
       <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">
+        <CardContent className="p-4 text-sm text-muted-foreground">
           No suggestions available.
         </CardContent>
       </Card>
     );
   }
 
-  const pendingSuggestions = suggestions.filter((s) => s.status === "pending");
-  const resolvedSuggestions = suggestions.filter((s) => s.status !== "pending");
+  const pendingSuggestions = suggestions.filter(
+    (suggestion) => suggestion.status === "pending"
+  );
+
+  const resolvedSuggestions = suggestions.filter(
+    (suggestion) => suggestion.status !== "pending"
+  );
 
   const priority = pendingSuggestions[0];
   const remainingPendingSuggestions = pendingSuggestions.slice(1);
 
   const handleReview = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-    onReviewSuggestion?.(id);
+    const nextExpandedId = expandedId === id ? null : id;
+
+    setExpandedId(nextExpandedId);
+
+    if (nextExpandedId === id) {
+      onReviewSuggestion?.(id);
+    } else {
+      onClearReview?.();
+    }
   };
 
   const handleApprove = (id: string) => {
@@ -213,19 +255,19 @@ export default function SuggestionPanel({
   };
 
   return (
-    <Card>
-      <CardHeader className="space-y-2">
+    <div className="space-y-3">
+      <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <CardTitle>Review Queue</CardTitle>
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <CardTitle className="text-lg">Review Queue</CardTitle>
         </div>
 
         <CardDescription>
           AI-generated validation suggestions for your dataset.
         </CardDescription>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-6 pt-0">
+      <div className="space-y-3">
         {priority ? (
           <SuggestionCard
             suggestion={priority}
@@ -236,10 +278,11 @@ export default function SuggestionPanel({
             onReview={handleReview}
           />
         ) : (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 px-4 py-3">
             <p className="text-sm font-semibold text-emerald-900">
               All suggestions reviewed
             </p>
+
             <p className="mt-1 text-sm text-emerald-800">
               There are no pending AI recommendations for this dataset.
             </p>
@@ -247,9 +290,9 @@ export default function SuggestionPanel({
         )}
 
         {remainingPendingSuggestions.length > 0 && (
-          <div className="space-y-5">
+          <div className="space-y-2">
             <p className="text-sm font-semibold text-foreground">
-              Pending Suggestions
+              Open Review Items
             </p>
 
             {remainingPendingSuggestions.map((suggestion) => (
@@ -257,6 +300,8 @@ export default function SuggestionPanel({
                 key={suggestion.id}
                 suggestion={suggestion}
                 isExpanded={expandedId === suggestion.id}
+                onApprove={handleApprove}
+                onReject={handleReject}
                 onReview={handleReview}
               />
             ))}
@@ -264,9 +309,9 @@ export default function SuggestionPanel({
         )}
 
         {resolvedSuggestions.length > 0 && (
-          <div className="space-y-5">
+          <div className="space-y-2">
             <p className="text-sm font-semibold text-muted-foreground">
-              Resolved Suggestions
+              Resolved Decisions
             </p>
 
             {resolvedSuggestions.map((suggestion) => (
@@ -279,7 +324,7 @@ export default function SuggestionPanel({
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

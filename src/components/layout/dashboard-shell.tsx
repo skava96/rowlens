@@ -1,11 +1,144 @@
 "use client";
 
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  FileUp,
+  Sparkles,
+  TableProperties,
+} from "lucide-react";
+
 import { useDatasetWorkflow } from "@/features/datasets/hooks/useDatasetWorkflow";
 
 import { UploadCard } from "@/components/upload/upload-card";
 import { DatasetTable } from "@/components/dataset/dataset-table";
 import DatasetSummary from "@/components/dataset/dataset-summary";
 import SuggestionPanel from "@/components/ai/suggestion-panel";
+import { DatasetIntelligence } from "@/components/dataset/dataset-intelligence";
+import { TransformationHistory } from "@/components/dataset/transformation-history";
+
+import { exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
+import { Button } from "../ui/button";
+
+function EmptyWorkspacePreview() {
+  const steps = [
+    {
+      title: "Upload dataset",
+      description: "Start with a CSV or Excel file.",
+      icon: FileUp,
+    },
+    {
+      title: "Validate records",
+      description: "Detect missing values and invalid formats.",
+      icon: TableProperties,
+    },
+    {
+      title: "Review AI suggestions",
+      description: "Approve or reject recommended cleaning actions.",
+      icon: Sparkles,
+    },
+    {
+      title: "Ready for export",
+      description: "Prepare clean data for downstream workflows.",
+      icon: CheckCircle2,
+    },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold">How CleanFlow works</h2>
+        <p className="text-sm text-muted-foreground">
+          Upload a dataset to start the AI-assisted cleaning workflow.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+
+          return (
+            <div
+              key={step.title}
+              className="rounded-xl border border-border bg-muted/20 px-3 py-2"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <Icon className="h-4 w-4 text-muted-foreground" />
+
+                <span className="text-xs text-muted-foreground">
+                  Step {index + 1}
+                </span>
+              </div>
+
+              <p className="text-sm font-semibold">{step.title}</p>
+              <p className="mt-1 text-xs leading-4 text-muted-foreground">
+                {step.description}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-xl border border-border bg-muted/10 p-3">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold">Dataset preview</p>
+            <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+              Waiting for upload
+            </span>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-border">
+            <div className="grid grid-cols-4 border-b border-border bg-muted/30 px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+              <span>Name</span>
+              <span>Email</span>
+              <span>Country</span>
+              <span>Status</span>
+            </div>
+
+            {[1, 2, 3].map((row) => (
+              <div
+                key={row}
+                className="grid grid-cols-4 border-b border-border/60 px-3 py-2 last:border-0"
+              >
+                <div className="h-3 w-20 rounded-full bg-muted animate-pulse-soft" />
+                <div className="h-3 w-24 rounded-full bg-muted animate-pulse-soft" />
+                <div className="h-3 w-16 rounded-full bg-muted animate-pulse-soft" />
+                <div className="h-3 w-14 rounded-full bg-muted animate-pulse-soft" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/10 p-3">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <p className="text-sm font-semibold">AI review preview</p>
+          </div>
+
+          <div className="space-y-2">
+            {[
+              "Invalid email formats",
+              "Missing required fields",
+              "Country standardization",
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-lg border border-border bg-background px-3 py-2"
+              >
+                <p className="text-sm font-medium">{item}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Suggestions appear after dataset validation.
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function DashboardShell() {
   const workflow = useDatasetWorkflow();
@@ -21,19 +154,43 @@ export default function DashboardShell() {
 
   const highlightedRowIds = selectedSuggestion?.affectedRows ?? [];
 
+  const handleExportCsv = () => {
+    exportDatasetToCsv({
+      columns: workflow.state.columns,
+      rows: workflow.state.rows,
+      fileName: "cleanflow-clean-dataset.csv",
+    });
+  };
+
+  const handleExportSelectedRows = (rowIds: number[]) => {
+    exportDatasetToCsv({
+      columns: workflow.state.columns,
+      rows: workflow.state.rows.filter((row) => rowIds.includes(row.id)),
+      fileName: "cleanflow-selected-rows.csv",
+    });
+  };
+
   return (
-    <div className="mx-auto max-w-screen-2xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-4">
       <UploadCard
         onUploadStart={workflow.startUpload}
-        onUploadProgress={workflow.setProgress}
-        onUploadComplete={workflow.completeUpload}
+        isUploading={workflow.state.status === "uploading"}
       />
 
+      {workflow.state.status === "idle" && <EmptyWorkspacePreview />}
+
       {workflow.state.status === "uploading" && (
-        <section className="rounded-3xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="text-sm font-medium">Uploading dataset...</p>
 
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Dataset upload progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={workflow.state.progress ?? 0}
+          >
             <div
               className="h-full bg-primary transition-all"
               style={{ width: `${workflow.state.progress ?? 0}%` }}
@@ -47,7 +204,7 @@ export default function DashboardShell() {
       )}
 
       {workflow.state.status === "processing" && (
-        <section className="rounded-3xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="text-sm font-medium">
             Processing dataset and generating AI suggestions...
           </p>
@@ -58,7 +215,7 @@ export default function DashboardShell() {
       )}
 
       {workflow.state.status === "failed" && (
-        <section className="rounded-3xl border border-destructive/30 bg-card p-6">
+        <section className="rounded-2xl border border-destructive/30 bg-card p-4 shadow-sm">
           <p className="text-sm font-medium text-destructive">
             Dataset processing failed
           </p>
@@ -70,78 +227,75 @@ export default function DashboardShell() {
 
       {isReady && (
         <>
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Export Ready Dataset</h2>
+                <p className="text-sm text-muted-foreground">
+                  Download the currently processed dataset as a clean CSV file.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleExportCsv}
+                disabled={!workflow.state.rows.length}
+                aria-label="Export processed dataset as CSV"
+                className="rounded-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+
+            </div>
+          </section>
+
           <DatasetSummary data={workflow.state} />
 
-          <section className="rounded-3xl border border-border bg-card p-6">
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold">
-                Processing Timeline
-              </h2>
+          <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <DatasetIntelligence profile={workflow.state.profile} />
 
-              <p className="text-sm text-muted-foreground">
-                Real-time workflow activity for the uploaded dataset.
-              </p>
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <SuggestionPanel
+                suggestions={workflow.state.suggestions}
+                hasDataset={isReady}
+                onReviewSuggestion={workflow.reviewSuggestion}
+                onApproveSuggestion={workflow.approveSuggestion}
+                onRejectSuggestion={workflow.rejectSuggestion}
+                onClearReview={workflow.clearSelectedSuggestion}
+              />
+            </section>
+          </div>
+
+          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Dataset Records</h2>
+                <p className="text-sm text-muted-foreground">
+                  Dynamic dataset preview with validation states.
+                </p>
+              </div>
+
+              <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                {workflow.state.rows.length} rows
+              </span>
             </div>
 
-            <div className="space-y-3">
-              {workflow.state.activity.map((activity, index) => {
-                const isLast =
-                  index === workflow.state.activity.length - 1;
-
-                return (
-                  <div
-                    key={activity.id}
-                    className="relative flex gap-4"
-                  >
-                    {/* Timeline */}
-                    <div className="flex flex-col items-center">
-                      <div className="z-10 h-3 w-3 rounded-full bg-emerald-500 shadow-sm" />
-
-                      {!isLast && (
-                        <div className="mt-1 h-full w-px bg-border" />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 rounded-xl border border-border bg-muted/20 px-4 py-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-medium">
-                            {activity.label}
-                          </p>
-
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Dataset workflow event
-                          </p>
-                        </div>
-
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {activity.time}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-border bg-card p-6">
             <DatasetTable
+              columns={workflow.state.columns}
               rows={workflow.state.rows}
               highlightedRowIds={highlightedRowIds}
+              onUpdateCell={workflow.updateCellValue}
+              onExportRows={handleExportSelectedRows}
+              onBulkMarkValid={workflow.bulkMarkRowsValid}
             />
           </section>
 
-          <section className="rounded-3xl border border-border bg-card p-6">
-            <SuggestionPanel
-              suggestions={workflow.state.suggestions}
-              hasDataset={isReady}
-              onReviewSuggestion={workflow.reviewSuggestion}
-              onApproveSuggestion={workflow.approveSuggestion}
-              onRejectSuggestion={workflow.rejectSuggestion}
-            />
-          </section>
+          <TransformationHistory
+            transformations={workflow.state.transformations}
+            columns={workflow.state.columns}
+            onUndoTransformation={workflow.undoTransformation}
+          />
         </>
       )}
     </div>

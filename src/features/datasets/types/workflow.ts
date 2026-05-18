@@ -1,5 +1,8 @@
-import { AISuggestion } from "@/types/dataset";
-import { DatasetRowView } from "@/features/datasets/adapters/datasetAdapter";
+import { AISuggestion, DatasetColumn, DatasetRow } from "@/types/dataset";
+
+import { DatasetProfile } from "@/features/datasets/utils/profileDataset";
+
+import { DatasetTransformation } from "./transformation";
 
 export type DatasetStatus =
   | "idle"
@@ -21,13 +24,16 @@ export interface DatasetWorkflowState {
   fileName: string | null;
   status: DatasetStatus;
 
-  rows: DatasetRowView[];
+  columns: DatasetColumn[];
+  rows: DatasetRow[];
   suggestions: AISuggestion[];
-
+  transformations: DatasetTransformation[];
   selectedSuggestionId: string | null;
 
   activity: DatasetActivity[];
 
   progress?: number;
   error?: string;
+
+  profile: DatasetProfile | null;
 }
