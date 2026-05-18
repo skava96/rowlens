@@ -1,10 +1,18 @@
+export type DatasetCellValue = string | number | boolean | Date | null;
+
+export type DatasetValidationState = "valid" | "missing" | "invalid";
+
+export interface DatasetColumn {
+  key: string;
+  label: string;
+}
+
 export interface DatasetRow {
   id: number;
-  name: string;
-  email: string;
-  country: string;
-  signupDate: string;
-  status: string;
+  values: Record<string, DatasetCellValue>;
+  validationState: DatasetValidationState;
+  validationField?: string;
+  transformedFields?: string[];
 }
 
 export interface AISuggestion {
@@ -16,4 +24,13 @@ export interface AISuggestion {
   affectedRows: number[];
   severity: "low" | "medium" | "high";
   status: "pending" | "approved" | "rejected";
+
+  action:
+    | "fill_missing"
+    | "flag_invalid"
+    | "remove_duplicate"
+    | "standardize_value";
+
+  targetField?: string;
+  suggestedValue?: DatasetCellValue;
 }
