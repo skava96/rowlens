@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,8 +9,11 @@ import {
   Sparkles,
   TableProperties,
 } from "lucide-react";
+import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import { useDatasetWorkflow } from "@/features/datasets/hooks/useDatasetWorkflow";
+import { exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
 
 import { UploadCard } from "@/components/upload/upload-card";
 import { DatasetTable } from "@/components/dataset/dataset-table";
@@ -17,9 +21,9 @@ import DatasetSummary from "@/components/dataset/dataset-summary";
 import SuggestionPanel from "@/components/ai/suggestion-panel";
 import { DatasetIntelligence } from "@/components/dataset/dataset-intelligence";
 import { TransformationHistory } from "@/components/dataset/transformation-history";
+import { Button } from "@/components/ui/button";
 
-import { exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
-import { Button } from "../ui/button";
+const COLUMN_VISIBILITY_KEY = "cleanflow-visible-columns";
 
 function EmptyWorkspacePreview() {
   const steps = [
@@ -102,10 +106,10 @@ function EmptyWorkspacePreview() {
                 key={row}
                 className="grid grid-cols-4 border-b border-border/60 px-3 py-2 last:border-0"
               >
-                <div className="h-3 w-20 rounded-full bg-muted animate-pulse-soft" />
-                <div className="h-3 w-24 rounded-full bg-muted animate-pulse-soft" />
-                <div className="h-3 w-16 rounded-full bg-muted animate-pulse-soft" />
-                <div className="h-3 w-14 rounded-full bg-muted animate-pulse-soft" />
+                <div className="h-3 w-20 animate-pulse-soft rounded-full bg-muted" />
+                <div className="h-3 w-24 animate-pulse-soft rounded-full bg-muted" />
+                <div className="h-3 w-16 animate-pulse-soft rounded-full bg-muted" />
+                <div className="h-3 w-14 animate-pulse-soft rounded-full bg-muted" />
               </div>
             ))}
           </div>
@@ -143,6 +147,81 @@ function EmptyWorkspacePreview() {
 export default function DashboardShell() {
   const workflow = useDatasetWorkflow();
 
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[] | null>(
+    () => {
+      if (typeof window === "undefined") return null;
+
+      try {
+        const stored = localStorage.getItem(COLUMN_VISIBILITY_KEY);
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    }
+  );
+
+  const [columnSearchQuery, setColumnSearchQuery] = useState("");
+
+  const defaultVisibleColumnKeys = useMemo(
+    () => workflow.state.columns.map((column) => column.key),
+    [workflow.state.columns]
+  );
+
+  const activeVisibleColumnKeys =
+    visibleColumnKeys ?? defaultVisibleColumnKeys;
+
+  useMemo(() => {
+    if (typeof window === "undefined") return;
+
+    localStorage.setItem(
+      COLUMN_VISIBILITY_KEY,
+      JSON.stringify(activeVisibleColumnKeys)
+    );
+  }, [activeVisibleColumnKeys]);
+
+  const visibleColumnKeySet = useMemo(
+    () => new Set(activeVisibleColumnKeys),
+    [activeVisibleColumnKeys]
+  );
+
+  const filteredVisibilityColumns = useMemo(() => {
+    const query = columnSearchQuery.trim().toLowerCase();
+
+    if (!query) return workflow.state.columns;
+
+    return workflow.state.columns.filter(
+      (column) =>
+        column.label.toLowerCase().includes(query) ||
+        column.key.toLowerCase().includes(query)
+    );
+  }, [workflow.state.columns, columnSearchQuery]);
+
+  const allColumnsVisible =
+    workflow.state.columns.length > 0 &&
+    workflow.state.columns.every((column) =>
+      visibleColumnKeySet.has(column.key)
+    );
+
+  const toggleColumnVisibility = (columnKey: string) => {
+    setVisibleColumnKeys((current) => {
+      const currentKeys = current ?? defaultVisibleColumnKeys;
+
+      if (currentKeys.includes(columnKey)) {
+        return currentKeys.filter((key) => key !== columnKey);
+      }
+
+      return [...currentKeys, columnKey];
+    });
+  };
+
+  const showAllColumns = () => {
+    setVisibleColumnKeys(defaultVisibleColumnKeys);
+  };
+
+  const hideAllColumns = () => {
+    setVisibleColumnKeys([]);
+  };
+
   const isReady =
     workflow.state.status === "ready" ||
     workflow.state.status === "reviewing" ||
@@ -159,6 +238,10 @@ export default function DashboardShell() {
       columns: workflow.state.columns,
       rows: workflow.state.rows,
       fileName: "cleanflow-clean-dataset.csv",
+    });
+
+    toast.success("Dataset exported", {
+      description: `${workflow.state.rows.length} rows exported successfully.`,
     });
   };
 
@@ -226,7 +309,7 @@ export default function DashboardShell() {
       )}
 
       {isReady && (
-        <>
+        <div className="space-y-4">
           <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -246,7 +329,6 @@ export default function DashboardShell() {
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV
               </Button>
-
             </div>
           </section>
 
@@ -267,23 +349,99 @@ export default function DashboardShell() {
             </section>
           </div>
 
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-4 flex items-start justify-between gap-4">
+          <section className="relative rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Dataset Records</h2>
                 <p className="text-sm text-muted-foreground">
-                  Dynamic dataset preview with validation states.
+                  Review, filter, edit, inspect, and export uploaded dataset
+                  records.
                 </p>
               </div>
 
-              <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                {workflow.state.rows.length} rows
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                  {workflow.state.rows.length} rows
+                </span>
+
+                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                  {workflow.state.columns.length} columns
+                </span>
+
+                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
+                  Preferences saved
+                </span>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-border bg-muted/20 p-3">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Column Visibility</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which dataset fields appear in the table view.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={showAllColumns}
+                    disabled={allColumnsVisible}
+                  >
+                    Show all
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={hideAllColumns}
+                    disabled={activeVisibleColumnKeys.length === 0}
+                  >
+                    Hide all
+                  </Button>
+                </div>
+              </div>
+
+              <input
+                value={columnSearchQuery}
+                onChange={(event) => setColumnSearchQuery(event.target.value)}
+                placeholder="Search columns..."
+                className="mb-3 h-9 w-full rounded-full border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                aria-label="Search dataset columns"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                {filteredVisibilityColumns.map((column) => {
+                  const isVisible = visibleColumnKeySet.has(column.key);
+
+                  return (
+                    <button
+                      key={column.key}
+                      type="button"
+                      onClick={() => toggleColumnVisibility(column.key)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                        isVisible
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted"
+                      )}
+                      aria-pressed={isVisible}
+                    >
+                      {column.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <DatasetTable
               columns={workflow.state.columns}
               rows={workflow.state.rows}
+              visibleColumnKeys={activeVisibleColumnKeys}
               highlightedRowIds={highlightedRowIds}
               onUpdateCell={workflow.updateCellValue}
               onExportRows={handleExportSelectedRows}
@@ -296,7 +454,7 @@ export default function DashboardShell() {
             columns={workflow.state.columns}
             onUndoTransformation={workflow.undoTransformation}
           />
-        </>
+        </div>
       )}
     </div>
   );
