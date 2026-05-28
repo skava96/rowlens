@@ -13,6 +13,7 @@ export interface DatasetRow {
   validationState: DatasetValidationState;
   validationField?: string;
   transformedFields?: string[];
+  searchText?: string;
 }
 
 export interface AISuggestion {

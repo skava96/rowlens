@@ -1,29 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
-  Download,
   FileUp,
   Sparkles,
   TableProperties,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 import { useDatasetWorkflow } from "@/features/datasets/hooks/useDatasetWorkflow";
-import { exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
+import { downloadCsv, exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
 
 import { UploadCard } from "@/components/upload/upload-card";
-import { DatasetTable } from "@/components/dataset/dataset-table";
 import DatasetSummary from "@/components/dataset/dataset-summary";
-import SuggestionPanel from "@/components/ai/suggestion-panel";
 import { DatasetIntelligence } from "@/components/dataset/dataset-intelligence";
 import { TransformationHistory } from "@/components/dataset/transformation-history";
-import { Button } from "@/components/ui/button";
+import DatasetExportSection from "@/features/datasets/components/dataset-export-section";
+import DatasetReviewSection from "@/features/datasets/components/dataset-review-section";
+import DatasetRecordsSection from "@/features/datasets/components/dataset-records-section";
 
-const COLUMN_VISIBILITY_KEY = "cleanflow-visible-columns";
+const getColumnVisibilityKey = (schemaKey: string) =>
+  `cleanflow-visible-columns:${schemaKey}`;
 
 function EmptyWorkspacePreview() {
   const steps = [
@@ -144,15 +143,32 @@ function EmptyWorkspacePreview() {
   );
 }
 
-export default function DashboardShell() {
-  const workflow = useDatasetWorkflow();
+type DashboardShellProps = {
+  datasetId: string;
+  workspaceName?: string;
+};
+
+export default function DashboardShell({
+  datasetId,
+  workspaceName = "Dataset Workspace",
+}: DashboardShellProps) {
+  const workflow = useDatasetWorkflow(datasetId);
+
+  const schemaKey = useMemo(() => {
+    const columnSignature = workflow.state.columns
+      .map((column) => column.key)
+      .join("|");
+
+    return `${datasetId}:${columnSignature}`;
+  }, [datasetId, workflow.state.columns]);
 
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[] | null>(
     () => {
       if (typeof window === "undefined") return null;
+      if (!schemaKey) return null;
 
       try {
-        const stored = localStorage.getItem(COLUMN_VISIBILITY_KEY);
+        const stored = localStorage.getItem(getColumnVisibilityKey(schemaKey));
         return stored ? JSON.parse(stored) : null;
       } catch {
         return null;
@@ -170,14 +186,15 @@ export default function DashboardShell() {
   const activeVisibleColumnKeys =
     visibleColumnKeys ?? defaultVisibleColumnKeys;
 
-  useMemo(() => {
+  useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!schemaKey || workflow.state.columns.length === 0) return;
 
     localStorage.setItem(
-      COLUMN_VISIBILITY_KEY,
+      getColumnVisibilityKey(schemaKey),
       JSON.stringify(activeVisibleColumnKeys)
     );
-  }, [activeVisibleColumnKeys]);
+  }, [activeVisibleColumnKeys, schemaKey, workflow.state.columns.length]);
 
   const visibleColumnKeySet = useMemo(
     () => new Set(activeVisibleColumnKeys),
@@ -234,11 +251,12 @@ export default function DashboardShell() {
   const highlightedRowIds = selectedSuggestion?.affectedRows ?? [];
 
   const handleExportCsv = () => {
-    exportDatasetToCsv({
-      columns: workflow.state.columns,
-      rows: workflow.state.rows,
-      fileName: "cleanflow-clean-dataset.csv",
-    });
+    const csvContent = exportDatasetToCsv(
+      workflow.state.rows,
+      workflow.state.columns
+    );
+
+    downloadCsv(csvContent, "cleanflow-clean-dataset.csv");
 
     toast.success("Dataset exported", {
       description: `${workflow.state.rows.length} rows exported successfully.`,
@@ -246,18 +264,21 @@ export default function DashboardShell() {
   };
 
   const handleExportSelectedRows = (rowIds: number[]) => {
-    exportDatasetToCsv({
-      columns: workflow.state.columns,
-      rows: workflow.state.rows.filter((row) => rowIds.includes(row.id)),
-      fileName: "cleanflow-selected-rows.csv",
-    });
+    const csvContent = exportDatasetToCsv(
+      workflow.state.rows.filter((row) => rowIds.includes(row.id)),
+      workflow.state.columns
+    );
+
+    downloadCsv(csvContent, "cleanflow-selected-rows.csv");
   };
 
   return (
     <div className="space-y-4">
       <UploadCard
         onUploadStart={workflow.startUpload}
-        isUploading={workflow.state.status === "uploading"}
+        status={workflow.state.status}
+        fileName={workflow.state.fileName}
+        error={workflow.state.error}
       />
 
       {workflow.state.status === "idle" && <EmptyWorkspacePreview />}
@@ -310,144 +331,47 @@ export default function DashboardShell() {
 
       {isReady && (
         <div className="space-y-4">
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Export Ready Dataset</h2>
-                <p className="text-sm text-muted-foreground">
-                  Download the currently processed dataset as a clean CSV file.
-                </p>
-              </div>
 
-              <Button
-                type="button"
-                onClick={handleExportCsv}
-                disabled={!workflow.state.rows.length}
-                aria-label="Export processed dataset as CSV"
-                className="rounded-full"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
-            </div>
-          </section>
+          <DatasetExportSection
+            rowCount={workflow.state.rows.length}
+            onExport={handleExportCsv}
+          />
 
           <DatasetSummary data={workflow.state} />
 
           <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <DatasetIntelligence profile={workflow.state.profile} />
 
-            <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-              <SuggestionPanel
-                suggestions={workflow.state.suggestions}
-                hasDataset={isReady}
-                onReviewSuggestion={workflow.reviewSuggestion}
-                onApproveSuggestion={workflow.approveSuggestion}
-                onRejectSuggestion={workflow.rejectSuggestion}
-                onClearReview={workflow.clearSelectedSuggestion}
-              />
-            </section>
+            <DatasetReviewSection
+              suggestions={workflow.state.suggestions}
+              hasDataset={isReady}
+              onReviewSuggestion={workflow.reviewSuggestion}
+              onApproveSuggestion={workflow.approveSuggestion}
+              onRejectSuggestion={workflow.rejectSuggestion}
+              onClearReview={workflow.clearSelectedSuggestion}
+            />
           </div>
 
-          <section className="relative rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Dataset Records</h2>
-                <p className="text-sm text-muted-foreground">
-                  Review, filter, edit, inspect, and export uploaded dataset
-                  records.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                  {workflow.state.rows.length} rows
-                </span>
-
-                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                  {workflow.state.columns.length} columns
-                </span>
-
-                <span className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                  Preferences saved
-                </span>
-              </div>
-            </div>
-
-            <div className="mb-4 rounded-2xl border border-border bg-muted/20 p-3">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold">Column Visibility</p>
-                  <p className="text-xs text-muted-foreground">
-                    Choose which dataset fields appear in the table view.
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={showAllColumns}
-                    disabled={allColumnsVisible}
-                  >
-                    Show all
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={hideAllColumns}
-                    disabled={activeVisibleColumnKeys.length === 0}
-                  >
-                    Hide all
-                  </Button>
-                </div>
-              </div>
-
-              <input
-                value={columnSearchQuery}
-                onChange={(event) => setColumnSearchQuery(event.target.value)}
-                placeholder="Search columns..."
-                className="mb-3 h-9 w-full rounded-full border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                aria-label="Search dataset columns"
-              />
-
-              <div className="flex flex-wrap gap-2">
-                {filteredVisibilityColumns.map((column) => {
-                  const isVisible = visibleColumnKeySet.has(column.key);
-
-                  return (
-                    <button
-                      key={column.key}
-                      type="button"
-                      onClick={() => toggleColumnVisibility(column.key)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                        isVisible
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted"
-                      )}
-                      aria-pressed={isVisible}
-                    >
-                      {column.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <DatasetTable
-              columns={workflow.state.columns}
-              rows={workflow.state.rows}
-              visibleColumnKeys={activeVisibleColumnKeys}
-              highlightedRowIds={highlightedRowIds}
-              onUpdateCell={workflow.updateCellValue}
-              onExportRows={handleExportSelectedRows}
-              onBulkMarkValid={workflow.bulkMarkRowsValid}
-            />
-          </section>
+          <DatasetRecordsSection
+            columns={workflow.state.columns}
+            rows={workflow.state.rows}
+            visibleColumnKeys={activeVisibleColumnKeys}
+            columnSearchQuery={columnSearchQuery}
+            highlightedRowIds={highlightedRowIds}
+            allColumnsVisible={allColumnsVisible}
+            activeVisibleColumnCount={activeVisibleColumnKeys.length}
+            filteredVisibilityColumns={filteredVisibilityColumns}
+            visibleColumnKeySet={visibleColumnKeySet}
+            schemaKey={schemaKey}
+            workspaceName={workspaceName}
+            onColumnSearchChange={setColumnSearchQuery}
+            onToggleColumnVisibility={toggleColumnVisibility}
+            onShowAllColumns={showAllColumns}
+            onHideAllColumns={hideAllColumns}
+            onUpdateCell={workflow.updateCellValue}
+            onExportRows={handleExportSelectedRows}
+            onBulkMarkValid={workflow.bulkMarkRowsValid}
+          />
 
           <TransformationHistory
             transformations={workflow.state.transformations}

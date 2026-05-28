@@ -1,47 +1,39 @@
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
 
-function escapeCsvValue(value: unknown) {
-  if (value === null || value === undefined) return "";
+function escapeCsvValue(value: unknown): string {
+  const rawValue = value == null ? "" : String(value);
 
-  const stringValue = String(value);
+  const formulaUnsafePattern = /^[=+\-@]/;
+  const safeValue = formulaUnsafePattern.test(rawValue)
+    ? `'${rawValue}`
+    : rawValue;
 
-  if (
-    stringValue.includes(",") ||
-    stringValue.includes('"') ||
-    stringValue.includes("\n")
-  ) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-
-  return stringValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
 }
 
-export function exportDatasetToCsv({
-  columns,
-  rows,
-  fileName = "cleanflow-export.csv",
-}: {
-  columns: DatasetColumn[];
-  rows: DatasetRow[];
-  fileName?: string;
-}) {
-  const headers = columns.map((column) => escapeCsvValue(column.label));
+export function exportDatasetToCsv(
+  rows: DatasetRow[],
+  columns: DatasetColumn[],
+): string {
+  const header = columns.map((column) => escapeCsvValue(column.label)).join(",");
 
-  const csvRows = rows.map((row) =>
+  const body = rows.map((row) =>
     columns
       .map((column) => escapeCsvValue(row.values[column.key]))
-      .join(",")
+      .join(","),
   );
 
-  const csvContent = [headers.join(","), ...csvRows].join("\n");
+  return [header, ...body].join("\n");
+}
 
+export function downloadCsv(csvContent: string, fileName: string) {
   const blob = new Blob([csvContent], {
     type: "text/csv;charset=utf-8;",
   });
 
   const url = URL.createObjectURL(blob);
-
   const link = document.createElement("a");
+
   link.href = url;
   link.download = fileName;
   link.click();

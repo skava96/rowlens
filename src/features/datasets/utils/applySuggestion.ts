@@ -4,21 +4,34 @@ import {
   DatasetRow,
 } from "@/types/dataset";
 import { DatasetTransformationChange } from "../types/transformation";
+import { getRowValidationState } from "./getRowValidationState";
 
 function updateRowValue(
   row: DatasetRow,
   field: string,
   value: DatasetCellValue
 ): DatasetRow {
+  const nextValues = {
+    ...row.values,
+    [field]: value,
+  };
+
   return {
     ...row,
-    values: {
-      ...row.values,
-      [field]: value,
-    },
-    validationState: "valid",
-    validationField: undefined,
-    transformedFields: [...(row.transformedFields ?? []), field],
+    values: nextValues,
+    ...getRowValidationState(nextValues),
+    transformedFields: Array.from(
+      new Set([...(row.transformedFields ?? []), field])
+    ),
+  };
+}
+
+function markRowFieldReviewed(row: DatasetRow, field: string): DatasetRow {
+  return {
+    ...row,
+    transformedFields: Array.from(
+      new Set([...(row.transformedFields ?? []), field])
+    ),
   };
 }
 
@@ -35,7 +48,8 @@ export function applySuggestionToRows({
   const changes: DatasetTransformationChange[] = [];
 
   switch (suggestion.action) {
-    case "fill_missing": {
+    case "fill_missing":
+    case "standardize_value": {
       const updatedRows = rows.map((row): DatasetRow => {
         if (!suggestion.affectedRows.includes(row.id)) return row;
         if (!suggestion.targetField) return row;
@@ -73,15 +87,7 @@ export function applySuggestionToRows({
           afterValue: beforeValue,
         });
 
-        return {
-          ...row,
-          validationState: "valid",
-          validationField: undefined,
-          transformedFields: [
-            ...(row.transformedFields ?? []),
-            suggestion.targetField,
-          ],
-        };
+        return markRowFieldReviewed(row, suggestion.targetField);
       });
 
       return {

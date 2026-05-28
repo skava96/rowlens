@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,10 +50,14 @@ function SuggestionDetails({ suggestion }: { suggestion: AISuggestion }) {
       label: "Confidence",
       value: `${suggestion.confidence}%`,
     },
+    {
+      label: "Decision",
+      value: suggestion.status,
+    },
   ];
 
   return (
-    <div className="mt-2 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+    <div className="mt-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
       <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {details.map((item) => (
           <div key={item.label}>
@@ -93,19 +97,19 @@ function SuggestionCard({
       className={cn(
         "rounded-xl border bg-background px-4 py-3 transition-colors",
         suggestion.status === "approved" &&
-        "border-emerald-100 bg-emerald-50/10",
+          "border-emerald-100 bg-emerald-50/10",
         suggestion.status === "rejected" && "border-rose-100 bg-rose-50/10",
         suggestion.status === "pending" &&
-        isExpanded &&
-        "border-sky-300 bg-sky-50/30",
+          isExpanded &&
+          "border-sky-300 bg-sky-50/30",
         suggestion.status === "pending" &&
-        isPriority &&
-        !isExpanded &&
-        "border-amber-200 bg-amber-50/20",
+          isPriority &&
+          !isExpanded &&
+          "border-amber-200 bg-amber-50/20",
         suggestion.status === "pending" &&
-        !isExpanded &&
-        !isPriority &&
-        "border-border"
+          !isExpanded &&
+          !isPriority &&
+          "border-border"
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -147,44 +151,48 @@ function SuggestionCard({
           >
             {suggestion.severity}
           </Badge>
+
           <Badge variant="outline" className="h-5 px-2 text-[11px]">
             {suggestion.confidence}%
           </Badge>
         </div>
       </div>
 
-      {!isResolved && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            onClick={() => onApprove?.(suggestion.id)}
-            aria-label={`Approve suggestion: ${suggestion.title}`}
-          >
-            Approve
-          </Button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!isResolved && (
+          <>
+            <Button
+              size="sm"
+              onClick={() => onApprove?.(suggestion.id)}
+              aria-label={`Approve suggestion: ${suggestion.title}`}
+            >
+              Approve
+            </Button>
 
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => onReject?.(suggestion.id)}
-            aria-label={`Reject suggestion: ${suggestion.title}`}
-          >
-            Reject
-          </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => onReject?.(suggestion.id)}
+              aria-label={`Reject suggestion: ${suggestion.title}`}
+            >
+              Reject
+            </Button>
+          </>
+        )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            aria-expanded={isExpanded}
-            aria-label={`Review suggestion details: ${suggestion.title}`}
-            onClick={() => onReview(suggestion.id)}
-          >
-            {isExpanded ? "Hide details" : "Review"}
-          </Button>
-        </div>
-      )}
+        <Button
+          variant="outline"
+          size="sm"
+          aria-expanded={isExpanded}
+          aria-label={`Review suggestion details: ${suggestion.title}`}
+          onClick={() => onReview(suggestion.id)}
+        >
+          {isResolved && <Eye className="mr-2 h-4 w-4" />}
+          {isExpanded ? "Hide details" : isResolved ? "View decision" : "Review"}
+        </Button>
+      </div>
 
-      {isExpanded && !isResolved && <SuggestionDetails suggestion={suggestion} />}
+      {isExpanded && <SuggestionDetails suggestion={suggestion} />}
     </div>
   );
 }

@@ -1,5 +1,4 @@
-import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, CheckCircle, XCircle, ArrowUp, ArrowDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +30,7 @@ interface DatasetTableGridProps {
   draftValue: string;
   sortConfig: SortConfig;
   allVisibleRowsSelected: boolean;
+  hasPartialVisibleSelection: boolean;
   onToggleSort: (field: string) => void;
   onToggleVisibleRowsSelection: () => void;
   onToggleRowSelection: (rowId: number) => void;
@@ -43,9 +43,11 @@ interface DatasetTableGridProps {
   onDraftValueChange: (value: string) => void;
   onSaveEditing: () => void;
   onCancelEditing: () => void;
-  onExportRows?: (rowIds: number[]) => void;
-  onBulkMarkValid?: (rowIds: number[]) => void;
+  onExportSelectedRows: () => void;
+  onBulkMarkSelectedRowsValid: () => void;
   onClearSelection: () => void;
+  onResetFilters: () => void;
+  onClearSearch: () => void;
 }
 
 export function DatasetTableGrid({
@@ -59,6 +61,7 @@ export function DatasetTableGrid({
   draftValue,
   sortConfig,
   allVisibleRowsSelected,
+  hasPartialVisibleSelection,
   onToggleSort,
   onToggleVisibleRowsSelection,
   onToggleRowSelection,
@@ -67,17 +70,26 @@ export function DatasetTableGrid({
   onDraftValueChange,
   onSaveEditing,
   onCancelEditing,
-  onExportRows,
-  onBulkMarkValid,
+  onExportSelectedRows,
+  onBulkMarkSelectedRowsValid,
   onClearSelection,
+  onResetFilters,
+  onClearSearch,
 }: DatasetTableGridProps) {
+
+  const getAriaSort = (field: string) => {
+    if (sortConfig?.field !== field) return "none";
+
+    return sortConfig.direction === "asc" ? "ascending" : "descending";
+  };
+
   return (
     <>
       {selectedRowIds.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-sky-950">
-              {selectedRowIds.length} rows selected
+              {selectedRowIds.length} rows selected across this table view.
             </p>
             <p className="text-xs text-sky-800">
               Bulk actions will apply to selected dataset records.
@@ -98,30 +110,12 @@ export function DatasetTableGrid({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => {
-                onBulkMarkValid?.(selectedRowIds);
-
-                toast.success("Rows reviewed", {
-                  description: `${selectedRowIds.length} rows marked as reviewed.`,
-                });
-
-                onClearSelection();
-              }}
+              onClick={onBulkMarkSelectedRowsValid}
             >
               Mark reviewed
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                onExportRows?.(selectedRowIds);
-
-                toast.success("Export started", {
-                  description: `${selectedRowIds.length} selected rows exported successfully.`,
-                });
-              }}
-            >
+            <Button type="button" size="sm" onClick={onExportSelectedRows}>
               Export selected
             </Button>
           </div>
@@ -142,14 +136,28 @@ export function DatasetTableGrid({
                   <input
                     type="checkbox"
                     checked={allVisibleRowsSelected}
+                    ref={(element) => {
+                      if (element) {
+                        element.indeterminate = hasPartialVisibleSelection;
+                      }
+                    }}
+                    onClick={(event) => event.stopPropagation()}
                     onChange={onToggleVisibleRowsSelection}
-                    aria-label="Select all visible rows"
+                    aria-label={
+                      hasPartialVisibleSelection
+                        ? "Some visible rows selected"
+                        : "Select all visible rows"
+                    }
+                    aria-checked={
+                      hasPartialVisibleSelection ? "mixed" : allVisibleRowsSelected
+                    }
                   />
                 </TableHead>
 
                 {visibleColumns.map((column) => (
                   <TableHead
                     key={column.key}
+                    aria-sort={getAriaSort(column.key)}
                     className="sticky top-0 z-10 min-w-[180px] px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground"
                   >
                     <button
@@ -161,14 +169,21 @@ export function DatasetTableGrid({
                       {column.label}
                       {sortConfig?.field === column.key && (
                         <span aria-hidden="true">
-                          {sortConfig.direction === "asc" ? "↑" : "↓"}
+                          {sortConfig.direction === "asc" ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )}
                         </span>
                       )}
                     </button>
                   </TableHead>
                 ))}
 
-                <TableHead className="sticky top-0 z-10 min-w-[180px] px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <TableHead
+                  aria-sort={getAriaSort("__validation")}
+                  className="sticky top-0 z-10 min-w-[180px] px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground"
+                >
                   <button
                     type="button"
                     onClick={() => onToggleSort("__validation")}
@@ -178,10 +193,18 @@ export function DatasetTableGrid({
                     Validation
                     {sortConfig?.field === "__validation" && (
                       <span aria-hidden="true">
-                        {sortConfig.direction === "asc" ? "↑" : "↓"}
+                        {sortConfig.direction === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        )}
                       </span>
                     )}
                   </button>
+
+                </TableHead>
+                <TableHead className="sticky top-0 z-10 w-[120px] px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -190,37 +213,83 @@ export function DatasetTableGrid({
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={visibleColumns.length + 2}
-                    className="px-4 py-8 text-center text-sm text-muted-foreground"
+                    colSpan={visibleColumns.length + 3}
+                    className="px-4 py-10 text-center"
                   >
-                    No records match the current search or filter. Try clearing
-                    filters or searching for another value.
+                    <div className="mx-auto flex max-w-sm flex-col items-center">
+                      <div className="rounded-full border border-border bg-muted/30 p-3">
+                        <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+                      </div>
+
+                      <p className="mt-4 text-sm font-semibold text-foreground">
+                        No matching records found
+                      </p>
+
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Try adjusting filters or clearing the current search query.
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            onResetFilters();
+                          }}
+                        >
+                          Reset filters
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            onClearSearch();
+                          }}
+                        >
+                          Clear search
+                        </Button>
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 rows.map((row) => {
                   const isHighlighted = highlightedRowIdSet.has(row.id);
+                  const isSelected = selectedRowIdSet.has(row.id);
 
                   return (
                     <TableRow
                       key={row.id}
+                      tabIndex={0}
+                      aria-selected={selectedRow?.id === row.id}
                       onClick={() => onSelectRow(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          onSelectRow(row);
+                        }
+
+                        if (event.key === " ") {
+                          event.preventDefault();
+                          onToggleRowSelection(row.id);
+                        }
+                      }}
                       className={cn(
-                        "cursor-pointer border-b border-border/60 transition-colors duration-150 hover:bg-muted/40",
+                        "cursor-pointer border-b border-border/60 transition-colors duration-150 hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30",
                         isHighlighted && "bg-sky-50/20",
-                        selectedRowIdSet.has(row.id) && "bg-sky-50/40",
+                        isSelected && "bg-sky-50/40",
                         selectedRow?.id === row.id &&
-                          "ring-1 ring-inset ring-sky-300"
+                        "ring-1 ring-inset ring-sky-300"
                       )}
                     >
                       <TableCell className="sticky left-0 z-20 w-[48px] border-r border-border bg-background px-4 py-3">
                         <input
                           type="checkbox"
-                          checked={selectedRowIdSet.has(row.id)}
-                          onChange={(event) => {
-                            event.stopPropagation();
-                            onToggleRowSelection(row.id);
-                          }}
+                          checked={isSelected}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => onToggleRowSelection(row.id)}
                           aria-label={`Select row ${row.id}`}
                         />
                       </TableCell>
@@ -242,21 +311,21 @@ export function DatasetTableGrid({
                             className={cn(
                               "px-4 py-3 align-middle text-foreground transition-colors hover:bg-muted/30",
                               isTransformed &&
-                                "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
+                              "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
                               columnIndex === 0 &&
-                                "border-l-2 border-l-transparent",
+                              "border-l-2 border-l-transparent",
                               columnIndex === 0 &&
-                                isHighlighted &&
-                                "border-l-sky-500",
-                              row.validationState === "missing" &&
-                                isValidationField &&
-                                "bg-amber-50 text-amber-950",
-                              row.validationState === "invalid" &&
-                                isValidationField &&
-                                "bg-red-50 text-red-950",
                               isHighlighted &&
-                                isValidationField &&
-                                "ring-1 ring-inset ring-sky-300"
+                              "border-l-sky-500",
+                              row.validationState === "missing" &&
+                              isValidationField &&
+                              "bg-amber-50 text-amber-950",
+                              row.validationState === "invalid" &&
+                              isValidationField &&
+                              "bg-red-50 text-red-950",
+                              isHighlighted &&
+                              isValidationField &&
+                              "ring-1 ring-inset ring-sky-300"
                             )}
                           >
                             <div className="flex flex-col gap-1">
@@ -365,6 +434,20 @@ export function DatasetTableGrid({
                             </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3 align-middle">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectRow(row);
+                          }}
+                          aria-label={`Inspect row ${row.id}`}
+                        >
+                          Inspect
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

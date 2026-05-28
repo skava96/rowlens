@@ -13,29 +13,140 @@ export type SortConfig = {
 } | null;
 
 export type TablePreferences = {
+  version: 1;
   rowsPerPage: number;
   searchQuery: string;
   statusFilter: DatasetStatusFilter;
   sortConfig: SortConfig;
 };
 
-export const TABLE_PREFERENCES_KEY = "cleanflow-table-preferences";
+export function getTablePreferencesKey(schemaKey: string) {
+  return `cleanflow-table-preferences:${schemaKey}`;
+}
 
-export function getPersistedPreferences(): TablePreferences | null {
-  if (typeof window === "undefined") return null;
+const TABLE_PREFERENCES_VERSION = 1;
+
+const DEFAULT_TABLE_PREFERENCES: TablePreferences = {
+  version: TABLE_PREFERENCES_VERSION,
+  rowsPerPage: 10,
+  searchQuery: "",
+  statusFilter: "all",
+  sortConfig: null,
+};
+
+const VALID_STATUS_FILTERS: DatasetStatusFilter[] = [
+  "all",
+  "valid",
+  "missing",
+  "invalid",
+  "corrected",
+];
+
+const VALID_ROWS_PER_PAGE = [10, 25, 50];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDatasetStatusFilter(value: unknown): value is DatasetStatusFilter {
+  return (
+    typeof value === "string" &&
+    VALID_STATUS_FILTERS.includes(value as DatasetStatusFilter)
+  );
+}
+
+function isSortConfig(value: unknown): value is SortConfig {
+  if (value === null) return true;
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.field === "string" &&
+    (value.direction === "asc" || value.direction === "desc")
+  );
+}
+
+export function getDefaultTablePreferences() {
+  return DEFAULT_TABLE_PREFERENCES;
+}
+
+export function parseTablePreferences(value: unknown): TablePreferences | null {
+  if (!isRecord(value)) return null;
+
+  if (value.version !== TABLE_PREFERENCES_VERSION) {
+    return null;
+  }
+
+  if (
+    typeof value.rowsPerPage !== "number" ||
+    !VALID_ROWS_PER_PAGE.includes(value.rowsPerPage)
+  ) {
+    return null;
+  }
+
+  if (typeof value.searchQuery !== "string") {
+    return null;
+  }
+
+  if (!isDatasetStatusFilter(value.statusFilter)) {
+    return null;
+  }
+
+  if (!isSortConfig(value.sortConfig)) {
+    return null;
+  }
+
+  return {
+    version: TABLE_PREFERENCES_VERSION,
+    rowsPerPage: value.rowsPerPage,
+    searchQuery: value.searchQuery,
+    statusFilter: value.statusFilter,
+    sortConfig: value.sortConfig,
+  };
+}
+
+export function getPersistedPreferences(schemaKey: string): TablePreferences {
+  if (typeof window === "undefined") {
+    return DEFAULT_TABLE_PREFERENCES;
+  }
 
   try {
-    const stored = localStorage.getItem(TABLE_PREFERENCES_KEY);
-    return stored ? (JSON.parse(stored) as TablePreferences) : null;
+    const stored = localStorage.getItem(
+      getTablePreferencesKey(schemaKey)
+    );
+
+    if (!stored) {
+      return DEFAULT_TABLE_PREFERENCES;
+    }
+
+    const parsed = parseTablePreferences(JSON.parse(stored));
+
+    if (!parsed) {
+      localStorage.removeItem(getTablePreferencesKey(schemaKey));
+      return DEFAULT_TABLE_PREFERENCES;
+    }
+
+    return parsed;
   } catch {
-    return null;
+    localStorage.removeItem(getTablePreferencesKey(schemaKey));
+    return DEFAULT_TABLE_PREFERENCES;
   }
 }
 
-export function persistPreferences(preferences: TablePreferences) {
+export function persistPreferences(
+  schemaKey: string,
+  preferences: Omit<TablePreferences, "version">
+) {
   if (typeof window === "undefined") return;
 
-  localStorage.setItem(TABLE_PREFERENCES_KEY, JSON.stringify(preferences));
+  const nextPreferences: TablePreferences = {
+    version: TABLE_PREFERENCES_VERSION,
+    ...preferences,
+  };
+
+  localStorage.setItem(
+    getTablePreferencesKey(schemaKey),
+    JSON.stringify(nextPreferences)
+  );
 }
 
 export function formatCellValue(value: DatasetRow["values"][string]) {
