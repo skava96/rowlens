@@ -1,21 +1,14 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
+import { useDatasetTableState } from "@/features/datasets/hooks/useDatasetTableState";
 
 import { DatasetTableControls } from "./dataset-table-controls";
 import { DatasetTableGrid } from "./dataset-table-grid";
 import { RowInspector } from "./row-inspector";
-import {
-  DatasetStatusFilter,
-  getPersistedPreferences,
-  persistPreferences,
-  SortConfig,
-  TablePreferences,
-} from "./dataset-table-utils";
 
 interface DatasetTableProps {
   columns: DatasetColumn[];
@@ -36,247 +29,67 @@ export function DatasetTable({
   onExportRows,
   onBulkMarkValid,
 }: DatasetTableProps) {
-  const persistedPreferences = useMemo(() => getPersistedPreferences(), []);
-
-  const [editingCell, setEditingCell] = useState<{
-    rowId: number;
-    field: string;
-  } | null>(null);
-
-  const [draftValue, setDraftValue] = useState("");
-  const [searchQuery, setSearchQuery] = useState(
-    persistedPreferences?.searchQuery ?? ""
-  );
-  const [statusFilter, setStatusFilter] = useState<DatasetStatusFilter>(
-    persistedPreferences?.statusFilter ?? "all"
-  );
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(
-    persistedPreferences?.rowsPerPage ?? 10
-  );
-  const [sortConfig, setSortConfig] = useState<SortConfig>(
-    persistedPreferences?.sortConfig ?? null
-  );
-  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
-  const [selectedRow, setSelectedRow] = useState<DatasetRow | null>(null);
-
-  const highlightedRowIdSet = useMemo(
-    () => new Set(highlightedRowIds),
-    [highlightedRowIds]
+  const schemaKey = useMemo(
+    () => columns.map((column) => column.key).join("|"),
+    [columns]
   );
 
-  const visibleColumns = useMemo(() => {
-    if (!visibleColumnKeys?.length) return columns;
-
-    const visibleColumnKeySet = new Set(visibleColumnKeys);
-    return columns.filter((column) => visibleColumnKeySet.has(column.key));
-  }, [columns, visibleColumnKeys]);
-
-  const saveTablePreferences = (next: Partial<TablePreferences>) => {
-    persistPreferences({
-      rowsPerPage,
-      searchQuery,
-      statusFilter,
-      sortConfig,
-      ...next,
-    });
-  };
-
-  const startEditing = (
-    rowId: number,
-    field: string,
-    currentValue: DatasetRow["values"][string]
-  ) => {
-    setEditingCell({ rowId, field });
-    setDraftValue(
-      currentValue === null || currentValue === undefined
-        ? ""
-        : String(currentValue)
-    );
-  };
-
-  const cancelEditing = () => {
-    setEditingCell(null);
-    setDraftValue("");
-  };
-
-  const closeInspector = () => {
-    setSelectedRow(null);
-  };
-
-  const saveEditing = () => {
-    if (!editingCell) return;
-
-    onUpdateCell?.(editingCell.rowId, editingCell.field, draftValue);
-
-    toast.success("Cell updated", {
-      description: `Row ${editingCell.rowId} was successfully updated.`,
-    });
-
-    setEditingCell(null);
-    setDraftValue("");
-  };
-
-  const toggleSort = (field: string) => {
-    setCurrentPage(1);
-
-    setSortConfig((current) => {
-      let nextSortConfig: SortConfig;
-
-      if (!current || current.field !== field) {
-        nextSortConfig = { field, direction: "asc" };
-      } else if (current.direction === "asc") {
-        nextSortConfig = { field, direction: "desc" };
-      } else {
-        nextSortConfig = null;
-      }
-
-      saveTablePreferences({ sortConfig: nextSortConfig });
-      return nextSortConfig;
-    });
-  };
-
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-
-    const matchingRows = rows.filter((row) => {
-      const matchesStatus =
-        statusFilter === "all" ||
-        row.validationState === statusFilter ||
-        (statusFilter === "corrected" &&
-          (row.transformedFields?.length ?? 0) > 0);
-
-      const matchesSearch =
-        !normalizedSearch ||
-        Object.values(row.values).some((value) =>
-          String(value ?? "").toLowerCase().includes(normalizedSearch)
-        );
-
-      return matchesStatus && matchesSearch;
-    });
-
-    if (!sortConfig) return matchingRows;
-
-    return [...matchingRows].sort((a, b) => {
-      const aValue =
-        sortConfig.field === "__validation"
-          ? a.validationState
-          : a.values[sortConfig.field];
-
-      const bValue =
-        sortConfig.field === "__validation"
-          ? b.validationState
-          : b.values[sortConfig.field];
-
-      const normalizedA =
-        aValue === null || aValue === undefined ? "" : String(aValue);
-
-      const normalizedB =
-        bValue === null || bValue === undefined ? "" : String(bValue);
-
-      const comparison = normalizedA.localeCompare(normalizedB, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-
-      return sortConfig.direction === "asc" ? comparison : -comparison;
-    });
-  }, [rows, searchQuery, statusFilter, sortConfig]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
-
-  const paginatedRows = filteredRows.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
-  const selectedRowIdSet = useMemo(
-    () => new Set(selectedRowIds),
-    [selectedRowIds]
-  );
-
-  const visibleRowIds = paginatedRows.map((row) => row.id);
-
-  const allVisibleRowsSelected =
-    visibleRowIds.length > 0 &&
-    visibleRowIds.every((rowId) => selectedRowIdSet.has(rowId));
-
-  const toggleRowSelection = (rowId: number) => {
-    setSelectedRowIds((current) =>
-      current.includes(rowId)
-        ? current.filter((id) => id !== rowId)
-        : [...current, rowId]
-    );
-  };
-
-  const toggleVisibleRowsSelection = () => {
-    setSelectedRowIds((current) => {
-      const currentSet = new Set(current);
-
-      if (allVisibleRowsSelected) {
-        visibleRowIds.forEach((rowId) => currentSet.delete(rowId));
-      } else {
-        visibleRowIds.forEach((rowId) => currentSet.add(rowId));
-      }
-
-      return Array.from(currentSet);
-    });
-  };
-
-  const clearSelection = () => {
-    setSelectedRowIds([]);
-  };
+  const table = useDatasetTableState({
+    schemaKey,
+    columns,
+    rows,
+    visibleColumnKeys,
+    highlightedRowIds,
+    onUpdateCell,
+    onExportRows,
+    onBulkMarkValid,
+  });
 
   return (
     <div
       className="space-y-3"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
-          cancelEditing();
-          closeInspector();
+          table.cancelEditing();
+          table.closeInspector();
         }
       }}
     >
       <DatasetTableControls
-        filteredRowCount={filteredRows.length}
+        filteredRowCount={table.filteredRows.length}
         totalRowCount={rows.length}
-        searchQuery={searchQuery}
-        statusFilter={statusFilter}
-        onSearchChange={(nextSearchQuery) => {
-          setSearchQuery(nextSearchQuery);
-          setCurrentPage(1);
-          saveTablePreferences({ searchQuery: nextSearchQuery });
-        }}
-        onStatusFilterChange={(nextStatusFilter) => {
-          setStatusFilter(nextStatusFilter);
-          setCurrentPage(1);
-          saveTablePreferences({ statusFilter: nextStatusFilter });
-        }}
+        searchQuery={table.searchQuery}
+        statusFilter={table.statusFilter}
+        onSearchChange={table.setSearch}
+        onStatusFilterChange={table.setStatus}
       />
 
       <DatasetTableGrid
         columns={columns}
-        rows={paginatedRows}
-        visibleColumns={visibleColumns}
-        highlightedRowIdSet={highlightedRowIdSet}
-        selectedRowIdSet={selectedRowIdSet}
-        selectedRow={selectedRow}
-        selectedRowIds={selectedRowIds}
-        editingCell={editingCell}
-        draftValue={draftValue}
-        sortConfig={sortConfig}
-        allVisibleRowsSelected={allVisibleRowsSelected}
-        onToggleSort={toggleSort}
-        onToggleVisibleRowsSelection={toggleVisibleRowsSelection}
-        onToggleRowSelection={toggleRowSelection}
-        onSelectRow={setSelectedRow}
-        onStartEditing={startEditing}
-        onDraftValueChange={setDraftValue}
-        onSaveEditing={saveEditing}
-        onCancelEditing={cancelEditing}
-        onExportRows={onExportRows}
-        onBulkMarkValid={onBulkMarkValid}
-        onClearSelection={clearSelection}
+        rows={table.paginatedRows}
+        visibleColumns={table.visibleColumns}
+        highlightedRowIdSet={table.highlightedRowIdSet}
+        selectedRowIdSet={table.selectedRowIdSet}
+        selectedRow={table.selectedRow}
+        selectedRowIds={table.selectedRowIds}
+        editingCell={table.editingCell}
+        draftValue={table.draftValue}
+        sortConfig={table.sortConfig}
+        allVisibleRowsSelected={table.allVisibleRowsSelected}
+        hasPartialVisibleSelection={table.hasPartialVisibleSelection}
+        onToggleSort={table.toggleSort}
+        onToggleVisibleRowsSelection={table.toggleVisibleRowsSelection}
+        onToggleRowSelection={table.toggleRowSelection}
+        onSelectRow={(row) => table.setSelectedRowId(row.id)}
+        onStartEditing={table.startEditing}
+        onDraftValueChange={table.setDraftValue}
+        onSaveEditing={table.saveEditing}
+        onCancelEditing={table.cancelEditing}
+        onExportSelectedRows={table.exportSelectedRows}
+        onBulkMarkSelectedRowsValid={table.bulkMarkSelectedRowsValid}
+        onClearSelection={table.clearSelection}
+        onResetFilters={table.resetFilters}
+        onClearSearch={table.clearSearch}
       />
 
       <div className="sticky bottom-0 z-30 flex flex-col gap-3 rounded-2xl border border-border bg-background/95 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
@@ -284,14 +97,8 @@ export function DatasetTable({
           <span>Rows per page</span>
 
           <select
-            value={rowsPerPage}
-            onChange={(event) => {
-              const nextRowsPerPage = Number(event.target.value);
-
-              setRowsPerPage(nextRowsPerPage);
-              setCurrentPage(1);
-              saveTablePreferences({ rowsPerPage: nextRowsPerPage });
-            }}
+            value={table.rowsPerPage}
+            onChange={(event) => table.setPageSize(Number(event.target.value))}
             className="h-8 rounded-md border border-border bg-background px-2 text-sm"
             aria-label="Rows per page"
           >
@@ -306,23 +113,27 @@ export function DatasetTable({
             type="button"
             variant="outline"
             size="sm"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={table.currentPage === 1}
+            onClick={() =>
+              table.setCurrentPage((page) => Math.max(1, page - 1))
+            }
           >
             Previous
           </Button>
 
           <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
+            Page {table.currentPage} of {table.totalPages}
           </span>
 
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={currentPage === totalPages}
+            disabled={table.currentPage === table.totalPages}
             onClick={() =>
-              setCurrentPage((page) => Math.min(totalPages, page + 1))
+              table.setCurrentPage((page) =>
+                Math.min(table.totalPages, page + 1)
+              )
             }
           >
             Next
@@ -330,11 +141,11 @@ export function DatasetTable({
         </div>
       </div>
 
-      {selectedRow && (
+      {table.selectedRow && (
         <RowInspector
           columns={columns}
-          selectedRow={selectedRow}
-          onClose={closeInspector}
+          selectedRow={table.selectedRow}
+          onClose={table.closeInspector}
         />
       )}
     </div>

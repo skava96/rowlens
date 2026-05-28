@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
 
 import { formatCellValue, getValidationLabel } from "./dataset-table-utils";
+import { useEffect, useRef } from "react";
 
 interface RowInspectorProps {
   columns: DatasetColumn[];
@@ -26,8 +27,19 @@ export function RowInspector({
   selectedRow,
   onClose,
 }: RowInspectorProps) {
+
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, [selectedRow.id]);
+
   return (
-    <aside className="sticky top-4 mx-auto max-w-[1600px] rounded-2xl border border-border bg-card shadow-sm">
+    <aside
+      className="sticky top-4 mx-auto max-w-[1600px] rounded-2xl border border-border bg-card shadow-sm"
+      aria-labelledby="row-inspector-title"
+      aria-describedby="row-inspector-description"
+    >
       <div className="border-b border-border p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -40,11 +52,11 @@ export function RowInspector({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
                   selectedRow.validationState === "valid" &&
-                    "bg-emerald-100 text-emerald-700",
+                  "bg-emerald-100 text-emerald-700",
                   selectedRow.validationState === "missing" &&
-                    "bg-amber-100 text-amber-700",
+                  "bg-amber-100 text-amber-700",
                   selectedRow.validationState === "invalid" &&
-                    "bg-red-100 text-red-700"
+                  "bg-red-100 text-red-700"
                 )}
               >
                 {selectedRow.validationState === "valid" && (
@@ -60,14 +72,19 @@ export function RowInspector({
               </span>
             </div>
 
-            <h2 className="text-lg font-semibold">Row Inspector</h2>
-
-            <p className="text-sm text-muted-foreground">
+            <h2 id="row-inspector-title" className="text-lg font-semibold">
+              Row Inspector
+            </h2>
+            <p
+              id="row-inspector-description"
+              className="text-sm text-muted-foreground"
+            >
               Review field values, validation metadata, and applied corrections.
             </p>
           </div>
 
           <Button
+            ref={closeButtonRef}
             type="button"
             variant="outline"
             size="icon"
@@ -113,11 +130,11 @@ export function RowInspector({
                   className={cn(
                     "rounded-xl border border-border bg-muted/20 p-3 transition-colors",
                     isValidationField &&
-                      selectedRow.validationState === "missing" &&
-                      "border-amber-200 bg-amber-50",
+                    selectedRow.validationState === "missing" &&
+                    "border-amber-200 bg-amber-50",
                     isValidationField &&
-                      selectedRow.validationState === "invalid" &&
-                      "border-red-200 bg-red-50",
+                    selectedRow.validationState === "invalid" &&
+                    "border-red-200 bg-red-50",
                     isTransformed && "border-emerald-200 bg-emerald-50/70"
                   )}
                 >
