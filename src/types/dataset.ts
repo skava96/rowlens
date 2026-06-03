@@ -10,10 +10,11 @@ export interface DatasetColumn {
 export interface DatasetRow {
   id: number;
   values: Record<string, DatasetCellValue>;
-  validationState: DatasetValidationState;
+  validationState: "valid" | "missing" | "invalid";
   validationField?: string;
   transformedFields?: string[];
   searchText?: string;
+  reviewState?: "unreviewed" | "reviewed";
 }
 
 export interface AISuggestion {
@@ -24,13 +25,13 @@ export interface AISuggestion {
   confidence: number;
   affectedRows: number[];
   severity: "low" | "medium" | "high";
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "ignored";
 
   action:
-    | "fill_missing"
-    | "flag_invalid"
-    | "remove_duplicate"
-    | "standardize_value";
+  | "fill_missing"
+  | "flag_invalid"
+  | "remove_duplicate"
+  | "standardize_value";
 
   targetField?: string;
   suggestedValue?: DatasetCellValue;

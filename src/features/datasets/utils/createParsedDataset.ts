@@ -81,6 +81,7 @@ export function createParsedDataset(
         return {
             id: rowIndex + 1,
             values,
+            reviewState: "unreviewed",
             searchText: createRowSearchText(values),
             ...getRowValidationState(values),
         };

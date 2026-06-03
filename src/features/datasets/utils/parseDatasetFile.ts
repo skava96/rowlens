@@ -4,18 +4,17 @@ import {
 } from "@/types/dataset";
 
 import { createParsedDataset } from "./createParsedDataset";
+import { validateDatasetFile, validateDatasetRowCount } from "../parsing/validate-dataset-file";
 
 export type ParsedDataset = {
   columns: DatasetColumn[];
   rows: DatasetRow[];
 };
 
-export async function parseDatasetFile(file: File): Promise<ParsedDataset> {
-  const extension = file.name.split(".").pop()?.toLowerCase();
 
-  if (!extension || !["csv", "xlsx"].includes(extension)) {
-    throw new Error("Unsupported file type. Please upload a CSV or XLSX file.");
-  }
+export async function parseDatasetFile(file: File): Promise<ParsedDataset> {
+
+  validateDatasetFile(file);
 
   const buffer = await file.arrayBuffer();
 
@@ -36,6 +35,8 @@ export async function parseDatasetFile(file: File): Promise<ParsedDataset> {
   const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
     defval: null,
   });
+
+  validateDatasetRowCount(rawRows.length);
 
   return createParsedDataset(rawRows);
 }

@@ -2,15 +2,11 @@
 
 import { useEffect, useReducer, useRef } from "react";
 
-import { parseDatasetFile } from "../utils/parseDatasetFile";
+import { workerDatasetParser } from "../parsing/worker-dataset-parser";
 import { analyzeDataset } from "../utils/analyzeDataset";
 import { profileDataset } from "../utils/profileDataset";
-import {
-  getInitialWorkflowState,
-  getWorkflowStorageKey,
-  readStoredWorkflowState,
-  serializeWorkflowState,
-} from "../workflow/workflow-storage";
+import { getInitialWorkflowState } from "../workflow/workflow-storage";
+import { localWorkflowRepository } from "../workflow/local-workflow-repository";
 import { workflowReducer } from "../workflow/workflow-reducer";
 
 function createWorkflowMeta() {
@@ -28,6 +24,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
 
   const activeUploadIdRef = useRef<string | null>(null);
   const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const persistenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasRestoredStateRef = useRef(false);
 
   const clearProcessingTimer = () => {
@@ -37,9 +34,17 @@ export function useDatasetWorkflow(routeDatasetId: string) {
     }
   };
 
+  const clearPersistenceTimer = () => {
+    if (persistenceTimerRef.current) {
+      clearTimeout(persistenceTimerRef.current);
+      persistenceTimerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     return () => {
       clearProcessingTimer();
+      clearPersistenceTimer();
     };
   }, []);
 
@@ -48,22 +53,34 @@ export function useDatasetWorkflow(routeDatasetId: string) {
     if (!state.datasetId) return;
     if (!hasRestoredStateRef.current) return;
 
-    localStorage.setItem(
-      getWorkflowStorageKey(state.datasetId),
-      serializeWorkflowState(state)
-    );
+    clearPersistenceTimer();
+
+    persistenceTimerRef.current = setTimeout(() => {
+      const result = localWorkflowRepository.saveDraft(state);
+
+      if (!result.ok) {
+        console.warn(
+          "CleanFlow draft persistence failed",
+          result
+        );
+      }
+    }, 500);
+
+    return () => {
+      clearPersistenceTimer();
+    };
   }, [state]);
 
   useEffect(() => {
     if (hasRestoredStateRef.current) return;
 
-    const storedState = readStoredWorkflowState(routeDatasetId);
+    const result = localWorkflowRepository.loadDraft(routeDatasetId);
     hasRestoredStateRef.current = true;
 
-    if (storedState) {
+    if (result.data) {
       dispatch({
         type: "WORKFLOW_RESTORED",
-        state: storedState,
+        state: result.data,
       });
     }
   }, [routeDatasetId]);
@@ -98,7 +115,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
         requestAnimationFrame(() => resolve(null));
       });
 
-      const parsedDataset = await parseDatasetFile(file);
+      const parsedDataset = await workerDatasetParser.parse(file);
 
       if (!isUploadActive(uploadRequestId)) return;
 
@@ -150,7 +167,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
     approveSuggestion: (id: string) =>
       dispatch({ type: "SUGGESTION_APPROVED", suggestionId: id, meta: createWorkflowMeta() }),
     rejectSuggestion: (id: string) =>
-      dispatch({ type: "SUGGESTION_REJECTED", suggestionId: id, meta: createWorkflowMeta() }),
+      dispatch({ type: "SUGGESTION_IGNORED", suggestionId: id, meta: createWorkflowMeta() }),
     clearSelectedSuggestion: () =>
       dispatch({ type: "SELECT_SUGGESTION", suggestionId: null, meta: createWorkflowMeta() }),
     updateCellValue: (rowId: number, field: string, value: string) =>

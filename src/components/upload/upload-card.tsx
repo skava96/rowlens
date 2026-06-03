@@ -11,6 +11,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DATASET_UPLOAD_CONSTRAINTS } from "../../features/datasets/config/upload-constraints";
 
 type UploadCardStatus =
   | "idle"
@@ -28,7 +29,6 @@ type Props = {
   error?: string;
 };
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 function getUploadError(rejection: FileRejection) {
   const firstError = rejection.errors[0];
@@ -102,7 +102,7 @@ export function UploadCard({
     noClick: true,
     multiple: false,
     disabled: isUploadLocked,
-    maxSize: MAX_FILE_SIZE_BYTES,
+    maxSize: DATASET_UPLOAD_CONSTRAINTS.maxFileSizeBytes,
     accept: {
       "text/csv": [".csv"],
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -180,7 +180,7 @@ export function UploadCard({
                     Supported formats: CSV, XLSX
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Maximum file size: 10MB
+                    Maximum file size: {DATASET_UPLOAD_CONSTRAINTS.maxFileSizeMb}MB
                   </p>
                 </div>
               </div>

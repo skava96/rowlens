@@ -11,7 +11,7 @@ export function WorkspaceNavLinks() {
   const params = useParams<{ datasetId?: string }>();
   const pathname = usePathname();
 
-  const datasetId = params.datasetId ?? "sample-dataset";
+  const datasetId = params.datasetId ?? "customer-cleanup";
   const datasetHref = `/datasets/${datasetId}`;
   const auditHref = `${datasetHref}/audit`;
 
@@ -22,11 +22,19 @@ export function WorkspaceNavLinks() {
     <nav className="hidden items-center gap-2 sm:flex">
       <Button
         asChild
-        variant={isWorkspaceActive ? "secondary" : "ghost"}
+        variant="ghost"
         size="sm"
-        className={cn(isWorkspaceActive && "font-semibold")}
+        className={cn(
+          "border transition-colors",
+          isWorkspaceActive
+            ? "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50 hover:text-sky-700"
+            : "border-transparent"
+        )}
       >
-        <Link href={datasetHref} aria-current={isWorkspaceActive ? "page" : undefined}>
+        <Link
+          href={datasetHref}
+          aria-current={isWorkspaceActive ? "page" : undefined}
+        >
           <Database className="mr-2 h-4 w-4" />
           Workspace
         </Link>
@@ -34,15 +42,24 @@ export function WorkspaceNavLinks() {
 
       <Button
         asChild
-        variant={isAuditActive ? "secondary" : "ghost"}
+        variant="ghost"
         size="sm"
-        className={cn(isAuditActive && "font-semibold")}
+        className={cn(
+          "border transition-colors",
+          isAuditActive
+            ? "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50 hover:text-sky-700"
+            : "border-transparent"
+        )}
       >
-        <Link href={auditHref} aria-current={isAuditActive ? "page" : undefined}>
+        <Link
+          href={auditHref}
+          aria-current={isAuditActive ? "page" : undefined}
+        >
           <FileClock className="mr-2 h-4 w-4" />
           Audit Trail
         </Link>
       </Button>
+      
     </nav>
   );
 }

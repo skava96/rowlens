@@ -34,9 +34,8 @@ export default async function DatasetWorkspacePage({
 
   return (
     <DashboardShell
-      key={datasetId}
-      datasetId={datasetId}
-      workspaceName={workspace.workspaceName}
+      key={workspace.datasetId}
+      workspace={workspace}
     />
   );
 }

@@ -1,7 +1,15 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Eye, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Eye,
+  Rows3,
+  ShieldAlert,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,17 +34,64 @@ type Props = {
 
 const formatRow = (row: number) => `#${row}`;
 
+function formatAction(action: AISuggestion["action"]) {
+  return action.replaceAll("_", " ");
+}
+
+function hasSuggestedValue(suggestion: AISuggestion) {
+  const value = suggestion.suggestedValue;
+
+  return (
+    value !== undefined &&
+    value !== null &&
+    String(value).trim() !== "" &&
+    String(value).trim().toLowerCase() !== "unknown"
+  );
+}
+
+function canApplyAutoFix(suggestion: AISuggestion) {
+  return (
+    suggestion.status === "pending" &&
+    suggestion.action !== "flag_invalid" &&
+    hasSuggestedValue(suggestion)
+  );
+}
+
 function getSeverityVariant(severity: AISuggestion["severity"]) {
   if (severity === "high") return "destructive";
   if (severity === "medium") return "secondary";
   return "outline";
 }
 
+function getStatusTone(status: AISuggestion["status"]) {
+  if (status === "approved") {
+    return "border-emerald-100 bg-emerald-50/30";
+  }
+
+  if (status === "ignored") {
+    return "border-rose-100 bg-rose-50/30";
+  }
+
+  return "border-border bg-background";
+}
+
 function SuggestionDetails({ suggestion }: { suggestion: AISuggestion }) {
+  const hasAutoFix = canApplyAutoFix(suggestion);
+
   const details = [
     {
       label: "Affected rows",
       value: suggestion.affectedRows.map(formatRow).join(", "),
+    },
+    {
+      label: "Action",
+      value: formatAction(suggestion.action),
+    },
+    {
+      label: "Auto-fix",
+      value: hasSuggestedValue(suggestion)
+        ? String(suggestion.suggestedValue)
+        : "Not available",
     },
     {
       label: "Type",
@@ -57,13 +112,40 @@ function SuggestionDetails({ suggestion }: { suggestion: AISuggestion }) {
   ];
 
   return (
-    <div className="mt-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+    <div className="mt-3 rounded-xl border border-border bg-muted/20 px-3 py-3">
+      {suggestion.status === "pending" && (
+        <div
+          className={cn(
+            "mb-3 rounded-lg border px-3 py-2 text-sm",
+            hasAutoFix
+              ? "border-emerald-100 bg-emerald-50/70 text-emerald-800"
+              : "border-sky-100 bg-sky-50/70 text-sky-800"
+          )}
+        >
+          {hasAutoFix ? (
+            <p>
+              Auto-fix available: approving this suggestion will apply{" "}
+              <span className="font-semibold">
+                {String(suggestion.suggestedValue)}
+              </span>{" "}
+              to the affected row(s).
+            </p>
+          ) : (
+            <p>
+              No auto-fix available. Review the affected row and edit it
+              manually if needed.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-3">
         {details.map((item) => (
           <div key={item.label}>
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
               {item.label}
             </p>
+
             <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
               {item.value}
             </p>
@@ -90,40 +172,36 @@ function SuggestionCard({
   onReview: (id: string) => void;
 }) {
   const isResolved =
-    suggestion.status === "approved" || suggestion.status === "rejected";
+    suggestion.status === "approved" || suggestion.status === "ignored";
+
+  const hasAutoFix = canApplyAutoFix(suggestion);
 
   return (
-    <div
+    <article
       className={cn(
-        "rounded-xl border bg-background px-4 py-3 transition-colors",
-        suggestion.status === "approved" &&
-          "border-emerald-100 bg-emerald-50/10",
-        suggestion.status === "rejected" && "border-rose-100 bg-rose-50/10",
+        "rounded-xl border px-4 py-3 transition-colors",
+        getStatusTone(suggestion.status),
         suggestion.status === "pending" &&
           isExpanded &&
           "border-sky-300 bg-sky-50/30",
         suggestion.status === "pending" &&
           isPriority &&
           !isExpanded &&
-          "border-amber-200 bg-amber-50/20",
-        suggestion.status === "pending" &&
-          !isExpanded &&
-          !isPriority &&
-          "border-border"
+          "border-amber-200 bg-amber-50/20"
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold leading-5 text-foreground">
+            <h3 className="text-sm font-semibold leading-5 text-foreground">
               {suggestion.title}
-            </p>
+            </h3>
 
             <Badge
               variant={
                 suggestion.status === "approved"
                   ? "secondary"
-                  : suggestion.status === "rejected"
+                  : suggestion.status === "ignored"
                     ? "destructive"
                     : "outline"
               }
@@ -132,9 +210,11 @@ function SuggestionCard({
               {suggestion.status === "approved" && (
                 <CheckCircle2 className="mr-1 h-3 w-3" />
               )}
-              {suggestion.status === "rejected" && (
+
+              {suggestion.status === "ignored" && (
                 <XCircle className="mr-1 h-3 w-3" />
               )}
+
               {suggestion.status}
             </Badge>
           </div>
@@ -142,58 +222,92 @@ function SuggestionCard({
           <p className="mt-1 text-sm leading-5 text-muted-foreground">
             {suggestion.description}
           </p>
+
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/20 px-2 py-1">
+              <Rows3 className="h-3 w-3" />
+              {suggestion.affectedRows.length} affected{" "}
+              {suggestion.affectedRows.length === 1 ? "row" : "rows"}
+            </span>
+
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/20 px-2 py-1 capitalize">
+              <Sparkles className="h-3 w-3" />
+              {formatAction(suggestion.action)}
+            </span>
+
+            {hasSuggestedValue(suggestion) && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-1 text-emerald-700">
+                Suggested fix: {String(suggestion.suggestedValue)}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-start gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
           <Badge
             variant={getSeverityVariant(suggestion.severity)}
-            className="h-5 px-2 text-[11px]"
+            className="h-6 px-2 text-[11px] capitalize"
           >
+            <ShieldAlert className="mr-1 h-3 w-3" />
             {suggestion.severity}
           </Badge>
 
-          <Badge variant="outline" className="h-5 px-2 text-[11px]">
-            {suggestion.confidence}%
+          <Badge variant="outline" className="h-6 px-2 text-[11px]">
+            {suggestion.confidence}% confidence
           </Badge>
         </div>
       </div>
 
+      {suggestion.status === "pending" && !hasAutoFix && (
+        <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2 text-sm text-sky-800">
+          No auto-fix available. Review the affected row and edit it manually if
+          needed.
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          onClick={() => onReview(suggestion.id)}
+          aria-expanded={isExpanded}
+          aria-label={`Review suggestion details: ${suggestion.title}`}
+        >
+          {isResolved && <Eye className="mr-2 h-4 w-4" />}
+          {isExpanded
+            ? "Hide details"
+            : isResolved
+              ? "View decision"
+              : "Review"}
+        </Button>
+
         {!isResolved && (
           <>
-            <Button
-              size="sm"
-              onClick={() => onApprove?.(suggestion.id)}
-              aria-label={`Approve suggestion: ${suggestion.title}`}
-            >
-              Approve
-            </Button>
+            {hasAutoFix && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onApprove?.(suggestion.id)}
+                aria-label={`Apply suggested fix: ${suggestion.title}`}
+              >
+                Apply Fix
+              </Button>
+            )}
 
             <Button
               size="sm"
-              variant="destructive"
+              variant="ghost"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
               onClick={() => onReject?.(suggestion.id)}
-              aria-label={`Reject suggestion: ${suggestion.title}`}
+              aria-label={`Ignore suggestion: ${suggestion.title}`}
             >
-              Reject
+              Ignore
             </Button>
           </>
         )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          aria-expanded={isExpanded}
-          aria-label={`Review suggestion details: ${suggestion.title}`}
-          onClick={() => onReview(suggestion.id)}
-        >
-          {isResolved && <Eye className="mr-2 h-4 w-4" />}
-          {isExpanded ? "Hide details" : isResolved ? "View decision" : "Review"}
-        </Button>
       </div>
 
       {isExpanded && <SuggestionDetails suggestion={suggestion} />}
-    </div>
+    </article>
   );
 }
 
@@ -211,7 +325,9 @@ export default function SuggestionPanel({
     return (
       <Card className="p-6 text-center">
         <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
+
         <CardTitle className="mt-3">No dataset uploaded yet</CardTitle>
+
         <CardDescription className="mt-1">
           Upload a file to see AI suggestions.
         </CardDescription>
@@ -252,26 +368,27 @@ export default function SuggestionPanel({
     }
   };
 
-  const handleApprove = (id: string) => {
+  const handleApplyFix = (id: string) => {
     setExpandedId(null);
     onApproveSuggestion?.(id);
   };
 
-  const handleReject = (id: string) => {
+  const handleIgnore = (id: string) => {
     setExpandedId(null);
     onRejectSuggestion?.(id);
   };
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1">
+    <div className="space-y-4">
+      <div>
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
+
           <CardTitle className="text-lg">Review Queue</CardTitle>
         </div>
 
-        <CardDescription>
-          AI-generated validation suggestions for your dataset.
+        <CardDescription className="mt-1">
+          Review AI-generated validation suggestions before applying decisions.
         </CardDescription>
       </div>
 
@@ -281,12 +398,12 @@ export default function SuggestionPanel({
             suggestion={priority}
             isPriority
             isExpanded={expandedId === priority.id}
-            onApprove={handleApprove}
-            onReject={handleReject}
+            onApprove={handleApplyFix}
+            onReject={handleIgnore}
             onReview={handleReview}
           />
         ) : (
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 px-4 py-3">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
             <p className="text-sm font-semibold text-emerald-900">
               All suggestions reviewed
             </p>
@@ -308,8 +425,8 @@ export default function SuggestionPanel({
                 key={suggestion.id}
                 suggestion={suggestion}
                 isExpanded={expandedId === suggestion.id}
-                onApprove={handleApprove}
-                onReject={handleReject}
+                onApprove={handleApplyFix}
+                onReject={handleIgnore}
                 onReview={handleReview}
               />
             ))}

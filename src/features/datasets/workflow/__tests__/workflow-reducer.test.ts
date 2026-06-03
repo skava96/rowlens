@@ -4,8 +4,8 @@ import {
   initialState,
   workflowReducer,
   type WorkflowAction,
-} from "./workflow-reducer";
-import { DatasetWorkflowState } from "../types/workflow";
+} from "../workflow-reducer";
+import { DatasetWorkflowState } from "../../types/workflow";
 
 const meta = {
   id: "event-1",
@@ -107,14 +107,14 @@ describe("workflowReducer", () => {
     expect(next.transformations).toHaveLength(1);
   });
 
-  it("does not approve a rejected suggestion", () => {
-    const rejectedState = workflowReducer(createReadyState(), {
-      type: "SUGGESTION_REJECTED",
+  it("does not approve a ignored suggestion", () => {
+    const ignoredState = workflowReducer(createReadyState(), {
+      type: "SUGGESTION_IGNORED",
       suggestionId: "suggestion-1",
       meta,
     });
 
-    const next = workflowReducer(rejectedState, {
+    const next = workflowReducer(ignoredState, {
       type: "SUGGESTION_APPROVED",
       suggestionId: "suggestion-1",
       meta: {
@@ -123,7 +123,7 @@ describe("workflowReducer", () => {
       },
     });
 
-    expect(next).toBe(rejectedState);
+    expect(next).toBe(ignoredState);
     expect(next.transformations).toHaveLength(0);
   });
 
