@@ -9,6 +9,7 @@ import { useDatasetTableState } from "@/features/datasets/hooks/useDatasetTableS
 import { DatasetTableControls } from "./dataset-table-controls";
 import { DatasetTableGrid } from "./dataset-table-grid";
 import { RowInspector } from "./row-inspector";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet";
 
 interface DatasetTableProps {
   columns: DatasetColumn[];
@@ -56,7 +57,7 @@ export function DatasetTable({
       }}
     >
       <DatasetTableControls
-        filteredRowCount={table.filteredRows.length}
+        filteredRowCount={table.filteredRowCount}
         totalRowCount={rows.length}
         searchQuery={table.searchQuery}
         statusFilter={table.statusFilter}
@@ -86,7 +87,7 @@ export function DatasetTable({
         onSaveEditing={table.saveEditing}
         onCancelEditing={table.cancelEditing}
         onExportSelectedRows={table.exportSelectedRows}
-        onBulkMarkSelectedRowsValid={table.bulkMarkSelectedRowsValid}
+        onBulkMarkSelectedRowsValid={table.bulkMarkSelectedRowsReviewed}
         onClearSelection={table.clearSelection}
         onResetFilters={table.resetFilters}
         onClearSearch={table.clearSearch}
@@ -115,7 +116,7 @@ export function DatasetTable({
             size="sm"
             disabled={table.currentPage === 1}
             onClick={() =>
-              table.setCurrentPage((page) => Math.max(1, page - 1))
+              table.setCurrentPage(Math.max(1, table.currentPage - 1))
             }
           >
             Previous
@@ -131,8 +132,8 @@ export function DatasetTable({
             size="sm"
             disabled={table.currentPage === table.totalPages}
             onClick={() =>
-              table.setCurrentPage((page) =>
-                Math.min(table.totalPages, page + 1)
+              table.setCurrentPage(
+                Math.min(table.totalPages, table.currentPage + 1)
               )
             }
           >
@@ -141,13 +142,32 @@ export function DatasetTable({
         </div>
       </div>
 
-      {table.selectedRow && (
-        <RowInspector
-          columns={columns}
-          selectedRow={table.selectedRow}
-          onClose={table.closeInspector}
-        />
-      )}
+      <Sheet
+        open={!!table.selectedRow}
+        onOpenChange={(open) => {
+          if (!open) {
+            table.closeInspector();
+          }
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="w-[min(92vw,980px)] max-w-none overflow-y-auto p-0 min-w-[750px]"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>
+              Row Inspector
+            </SheetTitle>
+          </SheetHeader>
+
+          {table.selectedRow && (
+            <RowInspector
+              columns={columns}
+              selectedRow={table.selectedRow}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

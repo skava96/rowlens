@@ -26,12 +26,10 @@ function updateRowValue(
   };
 }
 
-function markRowFieldReviewed(row: DatasetRow, field: string): DatasetRow {
+function markRowReviewed(row: DatasetRow): DatasetRow {
   return {
     ...row,
-    transformedFields: Array.from(
-      new Set([...(row.transformedFields ?? []), field])
-    ),
+    reviewState: "reviewed",
   };
 }
 
@@ -75,24 +73,16 @@ export function applySuggestionToRows({
 
     case "flag_invalid": {
       const updatedRows = rows.map((row): DatasetRow => {
-        if (!suggestion.affectedRows.includes(row.id)) return row;
-        if (!suggestion.targetField) return row;
+        if (!suggestion.affectedRows.includes(row.id)) {
+          return row;
+        }
 
-        const beforeValue = row.values[suggestion.targetField];
-
-        changes.push({
-          rowId: row.id,
-          field: suggestion.targetField,
-          beforeValue,
-          afterValue: beforeValue,
-        });
-
-        return markRowFieldReviewed(row, suggestion.targetField);
+        return markRowReviewed(row);
       });
 
       return {
         rows: updatedRows,
-        changes,
+        changes: [],
       };
     }
 

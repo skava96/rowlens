@@ -40,7 +40,7 @@ export type WorkflowAction =
     }
     | { type: "UPLOAD_FAILED"; error: string; meta: WorkflowMeta }
     | { type: "SUGGESTION_APPROVED"; suggestionId: string; meta: WorkflowMeta }
-    | { type: "SUGGESTION_REJECTED"; suggestionId: string; meta: WorkflowMeta }
+    | { type: "SUGGESTION_IGNORED"; suggestionId: string; meta: WorkflowMeta }
     | {
         type: "CELL_UPDATED";
         rowId: number;
@@ -66,6 +66,7 @@ export const initialState: DatasetWorkflowState = {
     activity: [],
     profile: null,
     transformations: [],
+    auditEvents: [],
 };
 
 export function workflowReducer(
@@ -200,10 +201,23 @@ export function workflowReducer(
                         changes: result.changes,
                     },
                 ],
+                auditEvents: [
+                    ...state.auditEvents,
+                    {
+                        id: action.meta.id,
+                        timestamp: action.meta.timestamp,
+                        source: "ai-suggestion",
+                        actor: "local-user",
+                        operation: `Applied suggestion: ${suggestion.title}`,
+                        rowIds: suggestion.affectedRows,
+                        fieldChanges: result.changes,
+                        status: "applied",
+                    },
+                ],
             };
         }
 
-        case "SUGGESTION_REJECTED": {
+        case "SUGGESTION_IGNORED": {
             const suggestion = state.suggestions.find(
                 (item) => item.id === action.suggestionId
             );
@@ -216,14 +230,26 @@ export function workflowReducer(
                 ...state,
                 suggestions: state.suggestions.map((item) =>
                     item.id === action.suggestionId
-                        ? { ...item, status: "rejected" as const }
+                        ? { ...item, status: "ignored" as const }
                         : item
                 ),
                 selectedSuggestionId:
                     state.selectedSuggestionId === action.suggestionId
                         ? null
                         : state.selectedSuggestionId,
-                activity: [...state.activity, createActivity(`Rejected: ${suggestion.title}`, action.meta)],
+                activity: [...state.activity, createActivity(`Ignored: ${suggestion.title}`, action.meta)],
+                auditEvents: [
+                    ...state.auditEvents,
+                    {
+                        id: action.meta.id,
+                        timestamp: action.meta.timestamp,
+                        source: "ai-suggestion",
+                        actor: "local-user",
+                        operation: `Ignored suggestion: ${suggestion.title}`,
+                        rowIds: suggestion.affectedRows,
+                        status: "ignored",
+                    },
+                ],
             };
         }
 
@@ -274,6 +300,26 @@ export function workflowReducer(
                         ],
                     },
                 ],
+                auditEvents: [
+                    ...state.auditEvents,
+                    {
+                        id: action.meta.id,
+                        timestamp: action.meta.timestamp,
+                        source: "manual-edit",
+                        actor: "local-user",
+                        operation: `Manual edit on row #${action.rowId}`,
+                        rowIds: [action.rowId],
+                        fieldChanges: [
+                            {
+                                rowId: action.rowId,
+                                field: action.field,
+                                beforeValue,
+                                afterValue: action.value,
+                            },
+                        ],
+                        status: "applied",
+                    },
+                ],
             };
         }
         case "TRANSFORMATION_UNDONE": {
@@ -321,23 +367,64 @@ export function workflowReducer(
                 };
             });
 
+            const totalChangeCount = transformation.changes.length;
+
+            const revertedChangeCount = state.rows.reduce((count, row) => {
+                const rowChanges = transformation.changes.filter(
+                    (change) => change.rowId === row.id
+                );
+
+                const safeChanges = rowChanges.filter((change) => {
+                    return row.values[change.field] === change.afterValue;
+                });
+
+                return count + safeChanges.length;
+            }, 0);
+
+            const revertStatus =
+                revertedChangeCount === totalChangeCount
+                    ? "reverted"
+                    : "partial_conflict";
+
             return {
                 ...state,
                 rows: updatedRows,
                 status: "reviewing",
                 suggestions: state.suggestions.map((suggestion) =>
-                    suggestion.id === transformation.suggestionId
+                    suggestion.id === transformation.suggestionId &&
+                        revertStatus === "reverted"
                         ? { ...suggestion, status: "pending" as const }
                         : suggestion
                 ),
                 transformations: state.transformations.map((item) =>
                     item.id === action.transformationId
-                        ? { ...item, reverted: true }
+                        ? { ...item, reverted: revertStatus === "reverted", revertStatus, }
                         : item
                 ),
                 activity: [
                     ...state.activity,
-                    createActivity(`Reverted: ${transformation.suggestionTitle}`, action.meta),
+                    createActivity(
+                        revertStatus === "reverted"
+                            ? `Reverted: ${transformation.suggestionTitle}`
+                            : `Partial revert conflict: ${transformation.suggestionTitle}`,
+                        action.meta
+                    )
+                ],
+                auditEvents: [
+                    ...state.auditEvents,
+                    {
+                        id: action.meta.id,
+                        timestamp: action.meta.timestamp,
+                        source: "undo",
+                        actor: "local-user",
+                        operation:
+                            revertStatus === "reverted"
+                                ? `Reverted transformation: ${transformation.suggestionTitle}`
+                                : `Partial revert conflict: ${transformation.suggestionTitle}`,
+                        rowIds: transformation.affectedRows,
+                        fieldChanges: transformation.changes,
+                        status: revertStatus,
+                    },
                 ],
             };
         }
@@ -350,14 +437,24 @@ export function workflowReducer(
 
                     return {
                         ...row,
-                        transformedFields: Array.from(
-                            new Set([...(row.transformedFields ?? []), "__bulk_review__"])
-                        ),
+                        reviewState: "reviewed" as const,
                     };
                 }),
                 activity: [
                     ...state.activity,
                     createActivity(`Bulk reviewed ${action.rowIds.length} dataset rows`, action.meta),
+                ],
+                auditEvents: [
+                    ...state.auditEvents,
+                    {
+                        id: action.meta.id,
+                        timestamp: action.meta.timestamp,
+                        source: "bulk-review",
+                        actor: "local-user",
+                        operation: `Bulk reviewed ${action.rowIds.length} rows`,
+                        rowIds: action.rowIds,
+                        status: "applied",
+                    },
                 ],
             };
         }

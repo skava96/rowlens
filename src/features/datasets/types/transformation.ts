@@ -16,4 +16,5 @@ export interface DatasetTransformation {
   action: string;
   changes: DatasetTransformationChange[];
   reverted?: boolean;
+  revertStatus?: "active" | "reverted" | "partial_conflict";
 }

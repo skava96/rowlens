@@ -4,6 +4,7 @@ import { DatasetProfile } from "@/features/datasets/utils/profileDataset";
 
 import { DatasetTransformation } from "./transformation";
 
+import { DatasetAuditEvent } from "./audit-event";
 export type DatasetStatus =
   | "idle"
   | "uploading"
@@ -36,4 +37,5 @@ export interface DatasetWorkflowState {
   error?: string;
 
   profile: DatasetProfile | null;
+  auditEvents: DatasetAuditEvent[];
 }

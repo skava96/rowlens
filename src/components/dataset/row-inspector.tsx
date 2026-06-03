@@ -5,38 +5,26 @@ import {
   Edit3,
   Info,
   Sparkles,
-  X,
   XCircle,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
 
 import { formatCellValue, getValidationLabel } from "./dataset-table-utils";
-import { useEffect, useRef } from "react";
 
 interface RowInspectorProps {
   columns: DatasetColumn[];
   selectedRow: DatasetRow;
-  onClose: () => void;
 }
 
 export function RowInspector({
   columns,
   selectedRow,
-  onClose,
 }: RowInspectorProps) {
 
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    closeButtonRef.current?.focus();
-  }, [selectedRow.id]);
-
   return (
-    <aside
-      className="sticky top-4 mx-auto max-w-[1600px] rounded-2xl border border-border bg-card shadow-sm"
+    <aside className="h-full overflow-hidden bg-card"
       aria-labelledby="row-inspector-title"
       aria-describedby="row-inspector-description"
     >
@@ -70,6 +58,16 @@ export function RowInspector({
                 )}
                 {getValidationLabel(selectedRow.validationState)}
               </span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                  selectedRow.reviewState === "reviewed"
+                    ? "bg-sky-100 text-sky-700"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                {selectedRow.reviewState === "reviewed" ? "Reviewed" : "Unreviewed"}
+              </span>
             </div>
 
             <h2 id="row-inspector-title" className="text-lg font-semibold">
@@ -82,21 +80,10 @@ export function RowInspector({
               Review field values, validation metadata, and applied corrections.
             </p>
           </div>
-
-          <Button
-            ref={closeButtonRef}
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onClose}
-            aria-label="Close row inspector"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[1fr_280px]">
+      <div className="grid gap-4 p-4 xl:grid-cols-[1fr_375px]">
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -116,7 +103,7 @@ export function RowInspector({
             </span>
           </div>
 
-          <div className="grid max-h-[520px] gap-3 overflow-auto pr-1 md:grid-cols-2">
+          <div className="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
             {columns.map((column) => {
               const isValidationField =
                 selectedRow.validationField === column.key;
@@ -125,7 +112,7 @@ export function RowInspector({
                 selectedRow.transformedFields?.includes(column.key);
 
               return (
-                <div
+                <section
                   key={column.key}
                   className={cn(
                     "rounded-xl border border-border bg-muted/20 p-3 transition-colors",
@@ -168,7 +155,7 @@ export function RowInspector({
                   <div className="break-words rounded-lg bg-background/70 px-3 py-2 text-sm font-medium text-foreground">
                     {formatCellValue(selectedRow.values[column.key])}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>
@@ -186,6 +173,13 @@ export function RowInspector({
                 <p className="text-xs text-muted-foreground">Current state</p>
                 <p className="font-medium">
                   {getValidationLabel(selectedRow.validationState)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground">Review state</p>
+                <p className="font-medium">
+                  {selectedRow.reviewState === "reviewed" ? "Reviewed" : "Unreviewed"}
                 </p>
               </div>
 
@@ -233,6 +227,18 @@ export function RowInspector({
                     <p className="font-medium">Validation issue detected</p>
                     <p className="text-xs text-muted-foreground">
                       Field: {selectedRow.validationField}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {selectedRow.reviewState === "reviewed" && (
+                <div className="flex gap-2 text-sm">
+                  <span className="mt-1 h-2 w-2 rounded-full bg-sky-500" />
+                  <div>
+                    <p className="font-medium">Record reviewed</p>
+                    <p className="text-xs text-muted-foreground">
+                      This row was manually marked as reviewed.
                     </p>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowRight,
   Bot,
   CheckCircle2,
@@ -38,7 +39,15 @@ function formatValue(value: unknown) {
 }
 
 function getSourceMeta(transformation: DatasetTransformation) {
-  if (transformation.reverted) {
+  if (transformation.revertStatus === "partial_conflict") {
+    return {
+      label: "Partial Conflict",
+      icon: AlertTriangle,
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+    };
+  }
+
+  if (transformation.reverted || transformation.revertStatus === "reverted") {
     return {
       label: "Reverted",
       icon: RotateCcw,
@@ -51,6 +60,14 @@ function getSourceMeta(transformation: DatasetTransformation) {
       label: "Manual Edit",
       icon: UserPen,
       className: "border-blue-100 bg-blue-50 text-blue-700",
+    };
+  }
+
+  if (transformation.action === "flag_invalid") {
+    return {
+      label: "AI Reviewed",
+      icon: Bot,
+      className: "border-sky-100 bg-sky-50 text-sky-700",
     };
   }
 
@@ -80,12 +97,11 @@ export function TransformationHistory({
 
           <div>
             <h2 className="text-lg font-semibold">
-              Transformation Audit Log
+              Transformation History
             </h2>
 
             <p className="text-sm text-muted-foreground">
-              Approved AI actions and manual corrections will appear here with
-              before/after lineage.
+              Review applied AI suggestions, manual edits, reversions, and before/after values.
             </p>
           </div>
         </div>
@@ -107,7 +123,7 @@ export function TransformationHistory({
             </h2>
 
             <p className="text-sm text-muted-foreground">
-              Trace applied AI actions, manual edits, affected rows, and
+              Trace applied suggestions, manual edits, affected rows, review decisions, and
               before/after values.
             </p>
           </div>
@@ -131,9 +147,11 @@ export function TransformationHistory({
                 key={transformation.id}
                 className={cn(
                   "rounded-xl border bg-background px-4 py-3 transition-colors",
-                  transformation.reverted
-                    ? "border-slate-200 bg-slate-50/40"
-                    : "border-border"
+                  transformation.revertStatus === "partial_conflict"
+                    ? "border-amber-200 bg-amber-50/30"
+                    : transformation.reverted || transformation.revertStatus === "reverted"
+                      ? "border-slate-200 bg-slate-50/40"
+                      : "border-border"
                 )}
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -194,7 +212,7 @@ export function TransformationHistory({
                       </div>
                     </div>
 
-                    {transformation.changes.length > 0 && (
+                    {transformation.changes.length > 0 ? (
                       <div className="mt-3 rounded-lg border border-border bg-muted/10">
                         <div className="grid grid-cols-[1fr_1fr_24px_1fr] border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                           <span>Field</span>
@@ -226,27 +244,34 @@ export function TransformationHistory({
                           ))}
                         </div>
                       </div>
+                    ) : (
+                      <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2 text-sm text-sky-800">
+                        No field values were changed. This action recorded a review decision for
+                        the affected rows.
+                      </div>
                     )}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    {!transformation.reverted ? (
+                    {transformation.revertStatus === "partial_conflict" ? (
+                      <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                        Partial conflict
+                      </span>
+                    ) : transformation.reverted || transformation.revertStatus === "reverted" ? (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                        Reverted
+                      </span>
+                    ) : (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          onUndoTransformation?.(transformation.id)
-                        }
+                        onClick={() => onUndoTransformation?.(transformation.id)}
                         aria-label={`Undo transformation: ${transformation.suggestionTitle}`}
                       >
                         <RotateCcw className="mr-2 h-3.5 w-3.5" />
                         Undo
                       </Button>
-                    ) : (
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                        Reverted
-                      </span>
                     )}
                   </div>
                 </div>

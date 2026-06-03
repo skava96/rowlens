@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,16 @@ export default function GlobalError({
     error,
     reset,
 }: {
-    error: Error;
+    error: Error & { digest?: string };
     reset: () => void;
 }) {
+    useEffect(() => {
+        console.error("CleanFlow route error", {
+            message: error.message,
+            digest: error.digest,
+        });
+    }, [error]);
+
     return (
         <main className="flex min-h-screen items-center justify-center bg-background p-6">
             <section className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
@@ -19,12 +27,19 @@ export default function GlobalError({
                 </div>
 
                 <h1 className="mt-4 text-lg font-semibold">
-                    Something went wrong
+                    Workspace could not be loaded
                 </h1>
 
                 <p className="mt-2 text-sm text-muted-foreground">
-                    {error.message || "CleanFlow could not load this workspace."}
+                    CleanFlow ran into a problem while loading this workspace. Try again,
+                    or refresh the page if the issue continues.
                 </p>
+
+                {error.digest && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                        Error reference: {error.digest}
+                    </p>
+                )}
 
                 <Button type="button" onClick={reset} className="mt-5 rounded-full">
                     <RefreshCw className="mr-2 h-4 w-4" />

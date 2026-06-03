@@ -89,10 +89,10 @@ export function DatasetTableGrid({
         <div className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-sky-950">
-              {selectedRowIds.length} rows selected across this table view.
+              {selectedRowIds.length} rows selected on this page.
             </p>
             <p className="text-xs text-sky-800">
-              Bulk actions will apply to selected dataset records.
+              Bulk actions apply only to selected rows on the current page.
             </p>
           </div>
 
@@ -278,7 +278,7 @@ export function DatasetTableGrid({
                       }}
                       className={cn(
                         "cursor-pointer border-b border-border/60 transition-colors duration-150 hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30",
-                        isHighlighted && "bg-sky-50/20",
+                        isHighlighted && "bg-sky-100/70 ring-2 ring-inset ring-sky-400",
                         isSelected && "bg-sky-50/40",
                         selectedRow?.id === row.id &&
                         "ring-1 ring-inset ring-sky-300"
@@ -298,8 +298,13 @@ export function DatasetTableGrid({
                         const isValidationField =
                           row.validationField === column.key;
 
-                        const isTransformed =
+                        const isValueTransformed =
                           row.transformedFields?.includes(column.key);
+
+                        const isReviewedOnly =
+                          row.reviewState === "reviewed" &&
+                          row.validationField === column.key &&
+                          !isValueTransformed;
 
                         const isEditing =
                           editingCell?.rowId === row.id &&
@@ -310,13 +315,15 @@ export function DatasetTableGrid({
                             key={column.key}
                             className={cn(
                               "px-4 py-3 align-middle text-foreground transition-colors hover:bg-muted/30",
-                              isTransformed &&
+                              isValueTransformed &&
                               "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
+                              isReviewedOnly &&
+                              "bg-sky-50/60 ring-1 ring-inset ring-sky-200",
                               columnIndex === 0 &&
-                              "border-l-2 border-l-transparent",
+                              "border-l-4 border-l-transparent",
                               columnIndex === 0 &&
                               isHighlighted &&
-                              "border-l-sky-500",
+                              "border-l-4 border-l-sky-600 bg-sky-50/50",
                               row.validationState === "missing" &&
                               isValidationField &&
                               "bg-amber-50 text-amber-950",
@@ -325,7 +332,7 @@ export function DatasetTableGrid({
                               "bg-red-50 text-red-950",
                               isHighlighted &&
                               isValidationField &&
-                              "ring-1 ring-inset ring-sky-300"
+                              "bg-sky-100 ring-2 ring-inset ring-sky-500"
                             )}
                           >
                             <div className="flex flex-col gap-1">
@@ -394,9 +401,15 @@ export function DatasetTableGrid({
                                 </button>
                               )}
 
-                              {isTransformed && (
+                              {isValueTransformed && (
                                 <span className="inline-flex w-fit rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-700">
                                   Corrected
+                                </span>
+                              )}
+
+                              {isReviewedOnly && (
+                                <span className="inline-flex w-fit rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-700">
+                                  Reviewed
                                 </span>
                               )}
 
@@ -424,7 +437,7 @@ export function DatasetTableGrid({
                             <>
                               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
                               <span className="text-amber-700">
-                                Needs review
+                                Missing value
                               </span>
                             </>
                           ) : (
@@ -434,6 +447,11 @@ export function DatasetTableGrid({
                             </>
                           )}
                         </div>
+                        {row.reviewState === "reviewed" && (
+                          <span className="mt-1 inline-flex w-fit rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-700">
+                            Reviewed
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-3 align-middle">
                         <Button

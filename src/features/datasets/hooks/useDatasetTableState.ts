@@ -13,9 +13,9 @@ import {
     TablePreferences,
 } from "@/components/dataset/dataset-table-utils";
 
-import { queryDatasetRows } from "../utils/queryDatasetRows";
 import { DatasetTableQuery } from "../types/table-query";
 import { DatasetTableRenderState } from "../types/table-rendering";
+import { localTableQueryAdapter } from "../table/local-table-query-adapter";
 
 interface UseDatasetTableStateArgs {
     schemaKey: string;
@@ -89,10 +89,6 @@ export function useDatasetTableState({
         [rows, selectedRowId]
     );
 
-    const selectedRowIds = useMemo(
-        () => Array.from(selectedRowIdSet),
-        [selectedRowIdSet]
-    );
 
     const tableQuery: DatasetTableQuery = useMemo(
         () => ({
@@ -115,26 +111,35 @@ export function useDatasetTableState({
         });
     };
 
+    const clearSelectionState = () => {
+        setSelectedRowIdSet(new Set());
+        setSelectedRowId(null);
+    };
+
     const setSearch = (nextSearchQuery: string) => {
         setSearchQuery(nextSearchQuery);
         setCurrentPage(1);
+        clearSelectionState();
         saveTablePreferences({ searchQuery: nextSearchQuery });
     };
 
     const setStatus = (nextStatusFilter: DatasetStatusFilter) => {
         setStatusFilter(nextStatusFilter);
         setCurrentPage(1);
+        clearSelectionState();
         saveTablePreferences({ statusFilter: nextStatusFilter });
     };
 
     const setPageSize = (nextRowsPerPage: number) => {
         setRowsPerPage(nextRowsPerPage);
         setCurrentPage(1);
+        clearSelectionState();
         saveTablePreferences({ rowsPerPage: nextRowsPerPage });
     };
 
     const toggleSort = (field: string) => {
         setCurrentPage(1);
+        clearSelectionState();
 
         setSortConfig((current) => {
             let nextSortConfig: SortConfig;
@@ -153,32 +158,32 @@ export function useDatasetTableState({
         });
     };
 
-    const filteredRows = useMemo(
+    const tableQueryResult = useMemo(
         () =>
-            queryDatasetRows({
+            localTableQueryAdapter.queryRows({
                 rows,
-                searchQuery: tableQuery.searchQuery,
-                statusFilter: tableQuery.statusFilter,
-                sortConfig: tableQuery.sortConfig,
+                query: tableQuery,
             }),
         [rows, tableQuery]
     );
 
-    const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
-
-    const paginatedRows = filteredRows.slice(
-        (currentPage - 1) * rowsPerPage,
-        currentPage * rowsPerPage
-    );
+    const paginatedRows = tableQueryResult.rows;
+    const totalPages = tableQueryResult.totalPages;
+    const filteredRowCount = tableQueryResult.totalRows;
 
     const tableRenderState: DatasetTableRenderState = {
         mode: "paginated",
-        totalRows: filteredRows.length,
+        totalRows: filteredRowCount,
         renderedRows: paginatedRows.length,
-        virtualizationReady: filteredRows.length > 500,
+        virtualizationReady: filteredRowCount > 500,
     };
 
     const visibleRowIds = paginatedRows.map((row) => row.id);
+
+    const selectedRowIds = useMemo(
+        () => visibleRowIds.filter((rowId) => selectedRowIdSet.has(rowId)),
+        [visibleRowIds, selectedRowIdSet]
+    );
 
     const allVisibleRowsSelected =
         visibleRowIds.length > 0 &&
@@ -229,6 +234,7 @@ export function useDatasetTableState({
             searchQuery: "",
             statusFilter: "all",
         });
+        clearSelectionState();
     };
 
     const clearSearch = () => {
@@ -238,6 +244,7 @@ export function useDatasetTableState({
         saveTablePreferences({
             searchQuery: "",
         });
+        clearSelectionState();
     };
 
     const startEditing = (
@@ -276,7 +283,7 @@ export function useDatasetTableState({
     };
 
     const exportSelectedRows = () => {
-        const rowIds = Array.from(selectedRowIdSet);
+        const rowIds = visibleRowIds.filter((rowId) => selectedRowIdSet.has(rowId));
 
         try {
             onExportRows?.(rowIds);
@@ -290,8 +297,8 @@ export function useDatasetTableState({
         }
     };
 
-    const bulkMarkSelectedRowsValid = () => {
-        const rowIds = Array.from(selectedRowIdSet);
+    const bulkMarkSelectedRowsReviewed = () => {
+        const rowIds = visibleRowIds.filter((rowId) => selectedRowIdSet.has(rowId));
 
         onBulkMarkValid?.(rowIds);
 
@@ -300,6 +307,11 @@ export function useDatasetTableState({
         });
 
         clearSelection();
+    };
+
+    const goToPage = (page: number) => {
+        setCurrentPage(page);
+        clearSelectionState();
     };
 
 
@@ -316,18 +328,19 @@ export function useDatasetTableState({
         selectedRowIdSet,
         highlightedRowIdSet,
         visibleColumns,
-        filteredRows,
+        filteredRows: paginatedRows,
+        filteredRowCount,
         paginatedRows,
         totalPages,
         allVisibleRowsSelected,
         hasPartialVisibleSelection,
         tableQuery,
         tableRenderState,
-        
+
         setSearch,
         setStatus,
         setPageSize,
-        setCurrentPage,
+        setCurrentPage: goToPage,
         setSelectedRowId,
         setDraftValue,
         toggleSort,
@@ -339,7 +352,7 @@ export function useDatasetTableState({
         saveEditing,
         closeInspector,
         exportSelectedRows,
-        bulkMarkSelectedRowsValid,
+        bulkMarkSelectedRowsReviewed,
         resetFilters,
         clearSearch,
     };
