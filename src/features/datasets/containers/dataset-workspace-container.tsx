@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   ShieldCheck,
@@ -20,7 +21,6 @@ import DatasetRecordsSection from "@/features/datasets/components/dataset-record
 import { DatasetWorkspace } from "@/features/datasets/config/dataset-registry";
 import { useColumnVisibilityPreferences } from "../hooks/useColumnVisibilityPreferences";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import DatasetOverview from "@/components/dataset/dataset-overview";
 
 function EmptyWorkspacePreview() {
@@ -118,13 +118,75 @@ type DatasetWorkspaceContainerProps = {
 
 type WorkspaceTab = "overview" | "review" | "records" | "history" | "export";
 
+type RecordsView = "all" | "affected";
+
+type RecordsViewIntent = {
+  mode: RecordsView;
+  key: string;
+  suggestionId?: string;
+};
+
 export function DatasetWorkspaceContainer({
   workspace,
 }: DatasetWorkspaceContainerProps) {
-  const { datasetId, workspaceName } = workspace;
+  const { datasetId } = workspace;
   const workflow = useDatasetWorkflow(datasetId);
 
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const tabFromUrl = searchParams.get("tab") as WorkspaceTab | null;
+
+  const activeTab: WorkspaceTab =
+    tabFromUrl &&
+      ["overview", "review", "records", "history", "export"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "overview";
+
+  const recordsViewFromUrl: RecordsView =
+    searchParams.get("recordsView") === "affected" ? "affected" : "all";
+
+  const suggestionIdFromUrl = searchParams.get("suggestionId");
+
+  const setActiveTab = (
+    tab: WorkspaceTab,
+    options?: {
+      recordsView?: RecordsView;
+      suggestionId?: string;
+    }
+  ) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+
+    if (tab === "records") {
+      params.set("recordsView", options?.recordsView ?? "all");
+
+      if (options?.suggestionId) {
+        params.set("suggestionId", options.suggestionId);
+      } else {
+        params.delete("suggestionId");
+      }
+    } else {
+      params.delete("recordsView");
+      params.delete("suggestionId");
+    }
+
+    const query = params.toString();
+
+    router.push(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const recordsViewIntent: RecordsViewIntent = {
+    mode: recordsViewFromUrl,
+    suggestionId: suggestionIdFromUrl ?? undefined,
+    key: `${activeTab}-${recordsViewFromUrl}-${suggestionIdFromUrl ?? "none"}`,
+  };
 
   const columnVisibility = useColumnVisibilityPreferences({
     datasetId,
@@ -136,8 +198,13 @@ export function DatasetWorkspaceContainer({
     workflow.state.status === "reviewing" ||
     workflow.state.status === "completed";
 
+  const activeSuggestionId =
+    activeTab === "records" && suggestionIdFromUrl
+      ? suggestionIdFromUrl
+      : workflow.state.selectedSuggestionId;
+
   const selectedSuggestion = workflow.state.suggestions.find(
-    (suggestion) => suggestion.id === workflow.state.selectedSuggestionId
+    (suggestion) => suggestion.id === activeSuggestionId
   );
 
   const highlightedRowIds = selectedSuggestion?.affectedRows ?? [];
@@ -198,11 +265,6 @@ export function DatasetWorkspaceContainer({
     downloadCsv(csvContent, "cleanflow-selected-rows.csv");
   };
 
-  const handleReviewSuggestion = (id: string) => {
-    workflow.reviewSuggestion(id);
-    setActiveTab("records");
-  };
-
   const validRowCount = workflow.state.rows.filter(
     (row) => row.validationState === "valid"
   ).length;
@@ -210,6 +272,40 @@ export function DatasetWorkspaceContainer({
   const invalidRowCount = workflow.state.rows.filter(
     (row) => row.validationState === "invalid"
   ).length;
+
+  const handleReviewSuggestion = (id: string) => {
+    workflow.reviewSuggestion(id);
+
+    setActiveTab("records", {
+      recordsView: "affected",
+      suggestionId: id,
+    });
+  };
+
+  const handleApplySuggestion = (id: string) => {
+    workflow.approveSuggestion(id);
+
+    setActiveTab("records", {
+      recordsView: "affected",
+      suggestionId: id,
+    });
+  };
+
+  const handleWorkspaceTabChange = (tab: WorkspaceTab) => {
+    if (tab === "records") {
+      workflow.clearSelectedSuggestion();
+    }
+
+    setActiveTab(tab, tab === "records" ? { recordsView: "all" } : undefined);
+  };
+
+  const onRecordsViewChange = (view: RecordsView) => {
+    setActiveTab("records", {
+      recordsView: view,
+      suggestionId:
+        view === "affected" ? recordsViewIntent.suggestionId : undefined,
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -275,7 +371,7 @@ export function DatasetWorkspaceContainer({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleWorkspaceTabChange(tab.id)}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                   activeTab === tab.id
@@ -302,36 +398,40 @@ export function DatasetWorkspaceContainer({
               suggestions={workflow.state.suggestions}
               hasDataset={isReady}
               onReviewSuggestion={handleReviewSuggestion}
-              onApproveSuggestion={workflow.approveSuggestion}
+              onApproveSuggestion={handleApplySuggestion}
               onRejectSuggestion={workflow.rejectSuggestion}
               onClearReview={workflow.clearSelectedSuggestion}
             />
           )}
 
           {activeTab === "records" && (
-            <div className="space-y-4">
-              <DatasetRecordsSection
-                columns={workflow.state.columns}
-                rows={workflow.state.rows}
-                visibleColumnKeys={columnVisibility.activeVisibleColumnKeys}
-                columnSearchQuery={columnVisibility.columnSearchQuery}
-                highlightedRowIds={highlightedRowIds}
-                allColumnsVisible={columnVisibility.allColumnsVisible}
-                activeVisibleColumnCount={columnVisibility.activeVisibleColumnCount}
-                filteredVisibilityColumns={columnVisibility.filteredVisibilityColumns}
-                visibleColumnKeySet={columnVisibility.visibleColumnKeySet}
-                schemaKey={columnVisibility.schemaKey}
-                workspaceName={workspaceName}
-                onColumnSearchChange={columnVisibility.setColumnSearchQuery}
-                onToggleColumnVisibility={columnVisibility.toggleColumnVisibility}
-                onShowAllColumns={columnVisibility.showAllColumns}
-                onHideAllColumns={columnVisibility.hideAllColumns}
-                onUpdateCell={workflow.updateCellValue}
-                onExportRows={handleExportSelectedRows}
-                onBulkMarkValid={workflow.bulkMarkRowsValid}
-              />
-
-            </div>
+            <DatasetRecordsSection
+              key={columnVisibility.schemaKey}
+              columns={workflow.state.columns}
+              rows={workflow.state.rows}
+              columnsPanel={{
+                columnSearchQuery: columnVisibility.columnSearchQuery,
+                filteredVisibilityColumns: columnVisibility.filteredVisibilityColumns,
+                visibleColumnKeySet: columnVisibility.visibleColumnKeySet,
+                activePinnedColumnKeys: columnVisibility.activePinnedColumnKeys,
+                maxPinnedColumns: columnVisibility.maxPinnedColumns,
+                onColumnSearchChange: columnVisibility.setColumnSearchQuery,
+                onToggleColumnVisibility: columnVisibility.toggleColumnVisibility,
+                onToggleColumnPin: columnVisibility.toggleColumnPin,
+                onShowAllColumns: columnVisibility.showAllColumns,
+                onHideAllColumns: columnVisibility.hideAllColumns,
+              }}
+              visibleColumnKeys={columnVisibility.activeVisibleColumnKeys}
+              highlightedRowIds={highlightedRowIds}
+              activeVisibleColumnCount={columnVisibility.activeVisibleColumnCount}
+              schemaKey={columnVisibility.schemaKey}
+              recordsViewIntent={recordsViewIntent}
+              pinnedColumnKeys={columnVisibility.activePinnedColumnKeys}
+              onUpdateCell={workflow.updateCellValue}
+              onExportRows={handleExportSelectedRows}
+              onBulkMarkValid={workflow.bulkMarkRowsValid}
+              onRecordsViewChange={onRecordsViewChange}
+            />
           )}
           {activeTab === "history" && (
             <TransformationHistory

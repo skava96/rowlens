@@ -25,7 +25,7 @@ export default async function DatasetAuditPage({
   const { datasetId } = await params;
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+    <main className="mx-auto max-w-[1280px] space-y-6 px-4 py-6 sm:px-6">
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>

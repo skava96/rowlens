@@ -226,18 +226,28 @@ export function workflowReducer(
                 return state;
             }
 
+            const updatedSuggestions = state.suggestions.map((item) =>
+                item.id === action.suggestionId
+                    ? { ...item, status: "ignored" as const }
+                    : item
+            );
+
+            const allResolved = updatedSuggestions.every(
+                (item) => item.status !== "pending"
+            );
+
             return {
                 ...state,
-                suggestions: state.suggestions.map((item) =>
-                    item.id === action.suggestionId
-                        ? { ...item, status: "ignored" as const }
-                        : item
-                ),
+                status: allResolved ? "completed" : state.status,
+                suggestions: updatedSuggestions,
                 selectedSuggestionId:
                     state.selectedSuggestionId === action.suggestionId
                         ? null
                         : state.selectedSuggestionId,
-                activity: [...state.activity, createActivity(`Ignored: ${suggestion.title}`, action.meta)],
+                activity: [
+                    ...state.activity,
+                    createActivity(`Ignored: ${suggestion.title}`, action.meta),
+                ],
                 auditEvents: [
                     ...state.auditEvents,
                     {

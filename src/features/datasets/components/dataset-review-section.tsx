@@ -16,7 +16,6 @@ export default function DatasetReviewSection({
   onReviewSuggestion,
   onApproveSuggestion,
   onRejectSuggestion,
-  onClearReview,
 }: Props) {
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -26,7 +25,6 @@ export default function DatasetReviewSection({
         onReviewSuggestion={onReviewSuggestion}
         onApproveSuggestion={onApproveSuggestion}
         onRejectSuggestion={onRejectSuggestion}
-        onClearReview={onClearReview}
       />
     </section>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue } from "react";
+import { useCallback, useDeferredValue } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import {
 import { DatasetTableQuery } from "../types/table-query";
 import { DatasetTableRenderState } from "../types/table-rendering";
 import { localTableQueryAdapter } from "../table/local-table-query-adapter";
+import { DataGridColumnFilter } from "@/types/data-grid-types";
 
 interface UseDatasetTableStateArgs {
     schemaKey: string;
@@ -51,6 +52,10 @@ export function useDatasetTableState({
     const [draftValue, setDraftValue] = useState("");
     const [searchQuery, setSearchQuery] = useState(
         persistedPreferences.searchQuery
+    );
+
+    const [columnFilters, setColumnFilters] = useState(
+        persistedPreferences.columnFilters
     );
 
     const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -97,19 +102,31 @@ export function useDatasetTableState({
             sortConfig,
             page: currentPage,
             pageSize: rowsPerPage,
+            columnFilters,
         }),
-        [deferredSearchQuery, statusFilter, sortConfig, currentPage, rowsPerPage]
+        [deferredSearchQuery, statusFilter, sortConfig, currentPage, rowsPerPage, columnFilters]
     );
 
-    const saveTablePreferences = (next: Partial<TablePreferences>) => {
-        persistPreferences(schemaKey, {
+    const saveTablePreferences = useCallback(
+        (next: Partial<TablePreferences>) => {
+            persistPreferences(schemaKey, {
+                rowsPerPage,
+                searchQuery,
+                statusFilter,
+                sortConfig,
+                columnFilters,
+                ...next,
+            });
+        },
+        [
+            schemaKey,
             rowsPerPage,
             searchQuery,
             statusFilter,
             sortConfig,
-            ...next,
-        });
-    };
+            columnFilters,
+        ]
+    );
 
     const clearSelectionState = () => {
         setSelectedRowIdSet(new Set());
@@ -314,6 +331,56 @@ export function useDatasetTableState({
         clearSelectionState();
     };
 
+    const addColumnFilter = () => {
+        const nextFilters = [
+            ...columnFilters,
+            {
+                columnKey: "",
+                operator: "equals" as const,
+                values: [],
+            },
+        ];
+
+        setColumnFilters(nextFilters);
+        saveTablePreferences({ columnFilters: nextFilters });
+    };
+    const removeColumnFilter = (index: number) => {
+        const nextFilters = columnFilters.filter(
+            (_, filterIndex) => filterIndex !== index
+        );
+
+        setColumnFilters(nextFilters);
+
+        saveTablePreferences({
+            columnFilters: nextFilters,
+        });
+    };
+
+    const updateColumnFilter = (
+        index: number,
+        updates: Partial<DataGridColumnFilter>
+    ) => {
+        const nextFilters = columnFilters.map(
+            (filter, filterIndex) =>
+                filterIndex === index
+                    ? { ...filter, ...updates }
+                    : filter
+        );
+
+        setColumnFilters(nextFilters);
+
+        saveTablePreferences({
+            columnFilters: nextFilters,
+        });
+    };
+
+    const clearAllFilters = () => {
+        setColumnFilters([]);
+
+        saveTablePreferences({
+            columnFilters: [],
+        });
+    };
 
     return {
         searchQuery,
@@ -336,7 +403,12 @@ export function useDatasetTableState({
         hasPartialVisibleSelection,
         tableQuery,
         tableRenderState,
+        columnFilters,
 
+        addColumnFilter,
+        removeColumnFilter,
+        updateColumnFilter,
+        clearAllFilters,
         setSearch,
         setStatus,
         setPageSize,
