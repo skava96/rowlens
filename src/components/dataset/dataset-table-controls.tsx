@@ -34,7 +34,7 @@ export function DatasetTableControls({
         >
           <option value="all">All rows</option>
           <option value="valid">Valid</option>
-          <option value="missing">Missing</option>
+          <option value="missing">Needs review</option>
           <option value="invalid">Invalid</option>
           <option value="corrected">Corrected</option>
         </select>

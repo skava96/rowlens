@@ -7,7 +7,6 @@ type Props = {
   onReviewSuggestion: (id: string) => void;
   onApproveSuggestion: (id: string) => void;
   onRejectSuggestion: (id: string) => void;
-  onClearReview: () => void;
 };
 
 export default function DatasetReviewSection({

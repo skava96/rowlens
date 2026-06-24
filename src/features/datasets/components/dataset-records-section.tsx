@@ -27,6 +27,9 @@ type DatasetRecordsSectionProps = {
   onExportRows: (rowIds: number[]) => void;
   onBulkMarkValid: (rowIds: number[]) => void;
   onRecordsViewChange: (view: RecordsView) => void;
+  activeSuggestionTitle?: string;
+  activeSuggestionStatus?: "pending" | "approved" | "ignored" | "resolved";
+  activeSuggestionResolvedRowIds?: number[];
 };
 
 export default function DatasetRecordsSection({
@@ -39,6 +42,9 @@ export default function DatasetRecordsSection({
   recordsViewIntent,
   pinnedColumnKeys,
   columnsPanel,
+  activeSuggestionTitle,
+  activeSuggestionStatus,
+  activeSuggestionResolvedRowIds = [],
   onUpdateCell,
   onExportRows,
   onBulkMarkValid,
@@ -53,6 +59,15 @@ export default function DatasetRecordsSection({
     () => rows.filter((row) => affectedRowIdSet.has(row.id)),
     [rows, affectedRowIdSet]
   );
+
+  const resolvedAffectedRowIdSet = useMemo(
+    () => new Set(activeSuggestionResolvedRowIds),
+    [activeSuggestionResolvedRowIds]
+  );
+
+  const remainingAffectedRowCount =
+    affectedRows.length -
+    affectedRows.filter((row) => resolvedAffectedRowIdSet.has(row.id)).length;
 
   const hasAffectedRows = affectedRows.length > 0;
 
@@ -103,22 +118,58 @@ export default function DatasetRecordsSection({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <h2 className="text-lg font-semibold">Dataset Records</h2>
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Dataset Records</h2>
 
-      <DatasetTable
-        key={`${schemaKey}-${effectiveRecordsView}-${recordsViewIntent.key}`}
-        columns={columns}
-        rows={displayedRows}
-        visibleColumnKeys={visibleColumnKeys}
-        highlightedRowIds={highlightedRowIds}
-        onUpdateCell={onUpdateCell}
-        onExportRows={onExportRows}
-        onBulkMarkValid={onBulkMarkValid}
-        pinnedColumnKeys={pinnedColumnKeys}
-        activeVisibleColumnCount={activeVisibleColumnCount}
-        recordsViewSelector={recordsViewSelector}
-        columnsPanel={columnsPanel}
-      />
+          <p className="text-sm text-muted-foreground">
+            Review and edit dataset records.
+          </p>
+        </div>
+
+        {effectiveRecordsView === "affected" &&
+          activeSuggestionTitle && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2">
+              <p className="text-sm text-sky-900">
+                Reviewing affected rows for{" "}
+                <span className="font-semibold">
+                  {activeSuggestionTitle}
+                </span>
+                {" - "}
+                {affectedRows.length} original affected{" "}
+                {affectedRows.length === 1 ? "row" : "rows"}
+                {activeSuggestionStatus === "pending" && (
+                  <>
+                    {" - "}
+                    {remainingAffectedRowCount} still need
+                    {remainingAffectedRowCount === 1 ? "s" : ""} attention
+                  </>
+                )}
+                {activeSuggestionStatus === "resolved" && (
+                  <>{" - "}resolved by manual edits</>
+                )}
+              </p>
+            </div>
+          )}
+      </div>
+
+      <div className="mt-4">
+        <DatasetTable
+          key={`${schemaKey}-${effectiveRecordsView}-${recordsViewIntent.key}`}
+          columns={columns}
+          rows={displayedRows}
+          schemaKey={schemaKey}
+          visibleColumnKeys={visibleColumnKeys}
+          highlightedRowIds={highlightedRowIds}
+          onUpdateCell={onUpdateCell}
+          onExportRows={onExportRows}
+          onBulkMarkValid={onBulkMarkValid}
+          pinnedColumnKeys={pinnedColumnKeys}
+          activeVisibleColumnCount={activeVisibleColumnCount}
+          recordsViewSelector={recordsViewSelector}
+          columnsPanel={columnsPanel}
+        />
+      </div>
     </section>
   );
 }

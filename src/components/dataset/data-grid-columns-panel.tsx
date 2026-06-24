@@ -50,7 +50,7 @@ export default function DataGridColumnsPanel({ columnsPanel }: DataGridColumnsPa
                     size="sm"
                     onClick={columnsPanel.onHideAllColumns}
                 >
-                    Hide all
+                    Hide others
                 </Button>
             </div>
         </div>
@@ -83,6 +83,10 @@ export default function DataGridColumnsPanel({ columnsPanel }: DataGridColumnsPa
                                     checked={isVisible}
                                     onChange={() =>
                                         columnsPanel.onToggleColumnVisibility(column.key)
+                                    }
+                                    disabled={
+                                        isVisible &&
+                                        columnsPanel.visibleColumnKeySet.size <= 1
                                     }
                                     className="h-4 w-4"
                                 />

@@ -24,8 +24,9 @@ export interface AISuggestion {
   description: string;
   confidence: number;
   affectedRows: number[];
+  resolvedRows?: number[];
   severity: "low" | "medium" | "high";
-  status: "pending" | "approved" | "ignored";
+  status: "pending" | "approved" | "ignored" | "resolved";
 
   action:
   | "fill_missing"
@@ -35,4 +36,7 @@ export interface AISuggestion {
 
   targetField?: string;
   suggestedValue?: DatasetCellValue;
+  source?: "deterministic" | "ai-finding";
+  aiFindingId?: string;
+  reasoning?: string;
 }

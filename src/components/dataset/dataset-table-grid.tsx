@@ -81,7 +81,7 @@ function ValidationStatusCell({ row }: { row: DatasetRow }) {
         ) : row.validationState === "missing" ? (
           <>
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-            <span className="truncate text-amber-700">Missing</span>
+            <span className="truncate text-amber-700">Needs review</span>
           </>
         ) : (
           <>
@@ -137,7 +137,7 @@ export function DatasetTableGrid({
 
   const pinnedColumnCount = pinnedDataColumns.length;
 
-  const tableMinWidth = 2350
+  const tableMinWidth = 2350;
 
   const lastPinnedColumnIndex = pinnedColumnCount - 1;
 
@@ -239,7 +239,7 @@ export function DatasetTableGrid({
             isHighlighted &&
             "border-l-4 border-l-sky-500",
           isValueTransformed &&
-            "bg-emerald-50/60 ring-1 ring-inset ring-emerald-180",
+            "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
           isReviewedOnly && "bg-sky-50/60 ring-1 ring-inset ring-sky-200",
           row.validationState === "missing" &&
             isValidationField &&
@@ -279,7 +279,7 @@ export function DatasetTableGrid({
   return (
     <>
       {selectedRowIds.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-sky-180 bg-sky-50/50 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-sky-950">
               {selectedRowIds.length} rows selected on this page.

@@ -3,7 +3,10 @@ import { Check, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
-import { DataGridFiltersPanelModel } from "@/types/data-grid-types";
+import {
+  DataGridFiltersPanelModel,
+  MISSING_FILTER_VALUE,
+} from "@/types/data-grid-types";
 import { cn } from "@/lib/utils";
 
 type DataGridFiltersPanelProps = {
@@ -13,10 +16,19 @@ type DataGridFiltersPanelProps = {
 };
 
 function formatFilterValue(value: DatasetRow["values"][string]) {
-  if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined || value === "") {
+    return MISSING_FILTER_VALUE;
+  }
+
   if (value instanceof Date) return value.toLocaleDateString();
 
   return String(value);
+}
+
+function formatFilterValueLabel(value: string) {
+  if (value === MISSING_FILTER_VALUE) return "Missing value";
+
+  return value;
 }
 
 function sortDistinctValues(values: string[]) {
@@ -51,9 +63,7 @@ export function DataGridFiltersPanel({
       rows.forEach((row) => {
         const value = formatFilterValue(row.values[column.key]);
 
-        if (value) {
-          values.add(value);
-        }
+        values.add(value);
       });
 
       valueMap.set(column.key, sortDistinctValues(Array.from(values)));
@@ -107,7 +117,7 @@ export function DataGridFiltersPanel({
                 valueSearchQueryByFilterIndex[index] ?? "";
 
               const visibleFilterValues = filterValues.filter((value) =>
-                value
+                formatFilterValueLabel(value)
                   .toLowerCase()
                   .includes(valueSearchQuery.trim().toLowerCase())
               );
@@ -285,7 +295,9 @@ export function DataGridFiltersPanel({
                                   isSelected && "bg-sky-50 text-sky-900"
                                 )}
                               >
-                                <span className="truncate">{value}</span>
+                                <span className="truncate">
+                                  {formatFilterValueLabel(value)}
+                                </span>
 
                                 {isSelected && (
                                   <Check className="h-4 w-4 shrink-0" />

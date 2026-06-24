@@ -1,34 +1,41 @@
 import { DatasetRow } from "@/types/dataset";
+import { MISSING_FILTER_VALUE } from "@/types/data-grid-types";
 
 import { queryDatasetRows } from "../utils/queryDatasetRows";
 import { DatasetTableQueryResult } from "../types/table-query";
 import { DatasetTableQueryAdapter } from "./table-query-adapter";
 
-function applyColumnFilters(rows: DatasetRow[], query: Parameters<DatasetTableQueryAdapter["queryRows"]>[0]["query"]) {
+type DatasetTableQuery = Parameters<
+  DatasetTableQueryAdapter["queryRows"]
+>[0]["query"];
+
+function applyColumnFilters(rows: DatasetRow[], query: DatasetTableQuery) {
   if (query.columnFilters.length === 0) return rows;
 
   return rows.filter((row) =>
     query.columnFilters.every((filter) => {
+      if (!filter.columnKey) return true;
+
       const selectedValues = Array.isArray(filter.values)
-  ? filter.values.map((value) => value.toLowerCase())
-  : [];
-      if (!filter.columnKey || selectedValues?.length === 0) return true;
+        ? filter.values.map((value) => value.toLowerCase())
+        : [];
+
+      if (selectedValues.length === 0) return true;
 
       const rawValue = row.values[filter.columnKey];
+      const isMissingValue =
+        rawValue === null || rawValue === undefined || rawValue === "";
+
+      if (isMissingValue) {
+        return selectedValues.includes(MISSING_FILTER_VALUE);
+      }
+
       const cellValue =
-        rawValue === null || rawValue === undefined
-          ? ""
+        rawValue instanceof Date
+          ? rawValue.toLocaleDateString().toLowerCase()
           : String(rawValue).toLowerCase();
 
-      if (filter.operator === "equals") {
-        return selectedValues?.includes(cellValue);
-      }
-
-      if (filter.operator === "startsWith") {
-        return selectedValues?.some((v) => cellValue.startsWith(v));
-      }
-
-      return selectedValues?.some((v) => cellValue.includes(v));
+      return selectedValues.includes(cellValue);
     })
   );
 }

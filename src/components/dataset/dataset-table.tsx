@@ -26,6 +26,7 @@ interface DatasetTableProps {
   activeVisibleColumnCount?: number;
   recordsViewSelector?: ReactNode;
   columnsPanel?: DataGridColumnsPanelModel;
+  schemaKey?: string;
   onUpdateCell?: (rowId: number, field: string, value: string) => void;
   onExportRows?: (rowIds: number[]) => void;
   onBulkMarkValid?: (rowIds: number[]) => void;
@@ -40,6 +41,7 @@ export function DatasetTable({
   activeVisibleColumnCount,
   recordsViewSelector,
   columnsPanel,
+  schemaKey: providedSchemaKey,
   onUpdateCell,
   onExportRows,
   onBulkMarkValid,
@@ -56,7 +58,7 @@ export function DatasetTable({
   );
 
   const table = useDatasetTableState({
-    schemaKey,
+    schemaKey: providedSchemaKey ?? schemaKey,
     columns,
     rows,
     visibleColumnKeys,

@@ -1,423 +1,497 @@
 # CleanFlow AI
 
-  CleanFlow AI is a frontend architecture prototype for reviewing and cleaning uploaded datasets in a browser-based workflow.
+> Browser-first dataset review workspace built with Next.js, React, TypeScript, Web Workers, and local AI inference.
 
-  The project is built as a portfolio application for demonstrating route modeling, local workflow state, table interaction design,
-  file parsing boundaries, audit history, undo behavior, and migration seams for a future server-backed product.
+CleanFlow AI is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
 
-  It is not a deployed SaaS and does not include a backend, authentication, authorization, billing, collaboration, or real AI service
-  integration.
+The project was built as a portfolio-grade application to demonstrate senior frontend engineering practices across state management, data-intensive UI design, browser performance, workflow orchestration, local AI integration, and maintainable application architecture.
 
-  ## Project Overview
+---
 
-  CleanFlow AI lets a user open a route-scoped dataset workspace, upload a CSV or XLSX file, inspect parsed rows, review generated
-  data-quality suggestions, apply or reject those suggestions, manually edit cells, review transformation history, inspect audit
-  events, and export cleaned data as CSV.
+# What This Demonstrates
 
-  The current implementation runs locally in the browser. Uploaded file contents, generated suggestions, workflow history, audit
-  events, and table preferences are handled client-side.
+CleanFlow AI was built to showcase frontend engineering skills commonly required in modern enterprise platforms:
 
-  ## Why This Project Exists
+- React and TypeScript application architecture
+- Data-intensive user interfaces
+- Micro-interaction and workflow design
+- Browser performance optimization
+- State management at scale
+- Web Worker integration
+- AI-assisted user experiences
+- Auditability and traceability
+- Maintainable feature-oriented architecture
 
-  This repository exists to demonstrate senior frontend engineering judgment in a realistic data-workflow interface without requiring
-  backend infrastructure.
+Many of these patterns are commonly found in internal platforms, operational systems, analytics tools, and enterprise workflow applications.
 
-  The implementation focuses on:
+---
 
-  - Modeling a non-trivial UI workflow with reducer-based state transitions.
-  - Keeping route ownership and workspace identity explicit in the App Router.
-  - Separating browser-local prototype behavior from future server-backed boundaries.
-  - Handling table filtering, sorting, pagination, row selection, inline editing, and export.
-  - Capturing transformation history and audit events for review workflows.
-  - Making limitations visible instead of presenting localStorage as production-authoritative persistence.
+# Portfolio Highlights
 
-  ## Core User Workflow
+- Built a browser-first dataset review workspace using Next.js, React, and TypeScript
+- Dynamic schema generation from CSV and XLSX uploads
+- Reducer-driven workflow state with audit history and undo support
+- Browser Worker-based file parsing and AI inference
+- Local AI insights powered by WebLLM and WebGPU
+- Route-scoped workspaces with isolated persistence
+- Architecture organized around adapters, repositories, and feature boundaries
 
-  1. Upload dataset
-     The user opens a workspace route and uploads a CSV or XLSX file through the upload card.
+---
 
-  2. Analyze dataset
-     The file is parsed in a browser worker, converted into dynamic columns and rows, then analyzed locally for missing values and
-     invalid email/date-like fields.
+# Why This Project Exists
 
-  3. Review suggestions
-     Generated suggestions appear in the review section. Selecting a suggestion highlights affected rows in the table.
+Most data quality tools focus heavily on backend processing.
 
-  4. Apply or reject suggestions
-     Pending suggestions can be approved or ignored. Approved suggestions mutate affected rows when the suggestion action supports a
-     data change.
+CleanFlow AI explores the frontend engineering challenges involved in reviewing and correcting datasets:
 
-  5. Manual editing
-     Table cells can be edited inline. Manual edits create transformation records and audit events.
+* Dynamic data schemas
+* Large table interactions
+* Workflow state orchestration
+* Auditability and traceability
+* Browser performance constraints
+* AI-assisted review experiences
+* Local-first architecture
 
-  6. Audit history
-     The audit route reads the locally persisted workflow draft and displays recorded audit events for that dataset id.
+The goal is not to build a complete SaaS platform but to demonstrate how a production-quality frontend could support these workflows.
 
-  7. Export
-     The user can export the full dataset or selected visible rows as CSV.
+---
 
-     ## Demo Workspaces
+# Engineering Focus
 
-The application currently includes three route-scoped dataset workspaces:
+This project was intentionally designed to demonstrate frontend engineering challenges commonly found in enterprise applications:
 
-- `/datasets/customer-cleanup`
-- `/datasets/sales-audit`
-- `/datasets/marketing-leads`
+* Data-intensive table workflows
+* Dynamic schema rendering
+* Reducer-based workflow orchestration
+* Browser-based file processing
+* Local-first persistence architecture
+* Route-scoped workspaces
+* AI-assisted user experiences
+* Audit and change tracking
+* Worker-based performance boundaries
+* Replaceable infrastructure adapters
 
-Each workspace demonstrates the same workflow while maintaining independent route identity, metadata, persistence, and audit history.
+The project emphasizes maintainability, scalability, and explicit state management rather than backend infrastructure.
 
-  ## Implemented Features
+---
 
-  ### Upload & Parsing
+# Architecture Principles
 
-  - Drag-and-drop upload UI using react-dropzone.
-  - CSV and XLSX parsing through xlsx.
-  - Browser worker parser adapter at src/features/datasets/parsing/worker-dataset-parser.ts.
-  - Shared parser interface at src/features/datasets/parsing/dataset-parser.ts.
-  - Shared file and row-count validation helper at src/features/datasets/parsing/validate-dataset-file.ts.
-  - Local non-worker parser adapter retained as a prototype/migration alternative.
-  - Dynamic column generation from uploaded sheet headers.
-  - Duplicate normalized column-key handling.
-  - Empty dataset and missing-column error handling.
-  - Configured upload constraints in src/features/datasets/config/upload-constraints.ts.
+The application was designed around a few core principles:
 
-  ### Dataset Review
+- Explicit state transitions over implicit component mutations
+- Clear separation between workflow, table, persistence, and AI concerns
+- Browser performance through worker isolation
+- Deterministic validation as the source of truth
+- Replaceable infrastructure boundaries through adapters and repositories
+- Local-first development without backend dependencies
 
-  - Local dataset analysis for:
-      - missing values
-      - invalid email-like fields
-      - invalid date-like fields
+---
 
-  - Suggestion review states: pending, approved, ignored.
-  - Row highlighting for the selected suggestion.
-  - Separate validationState and reviewState on dataset rows.
-  - Dataset summary and profile views based on parsed/analyzed rows.
+# Key Features
 
-  ### Table Experience
+### Dataset Upload
 
-  - Dynamic schema rendering from uploaded columns.
-  - Search, status filtering, sorting, and pagination.
-  - Column visibility controls with persisted preferences.
-  - Inline cell editing.
-  - Row inspection panel.
-  - Current-page row selection.
-  - Bulk mark selected visible rows as reviewed.
-  - Export selected visible rows.
-  - Keyboard support for row focus, row selection with Space, row inspection with Enter, and editing cancellation with Escape.
+* Upload CSV and XLSX files
+* File size validation
+* Row count validation
+* Sample dataset support
+* Dynamic schema generation
 
-  ### Audit & Undo
+### Data Quality Review
 
-  - Transformation history for applied suggestions and manual edits.
-  - Undo support for transformations.
-  - Partial conflict detection when undoing a transformation after affected values have changed.
-  - Audit event records for:
-      - AI suggestion application
-      - AI suggestion rejection
-      - manual edits
-      - bulk review actions
-      - undo operations
+* Missing value detection
+* Invalid email detection
+* Invalid date detection
+* Review queue generation
+* Row highlighting
 
-  - Separate audit route at /datasets/[datasetId]/audit.
+### Records Workspace
 
-  ### Persistence
+* Search
+* Filtering
+* Sorting
+* Pagination
+* Row selection
+* Column visibility controls
+* Column pinning
+* Inline editing
 
-  - Workflow draft persistence through a repository abstraction.
-  - Browser-local implementation backed by localStorage.
-  - Versioned workflow storage payload.
-  - Table preferences persisted by schema key.
-  - Column visibility preferences persisted by dataset/schema key.
-  - Transient upload and processing states are normalized when restored from storage.
+### Review Workflow
 
-  ### App Router Features
+* Review suggestions
+* Apply fixes
+* Ignore suggestions
+* Mark records reviewed
+* Navigate directly to affected rows
 
-  - Next.js App Router under src/app.
-  - Route-owned dataset workspaces at /datasets/[datasetId].
-  - Audit route at /datasets/[datasetId]/audit.
-  - Root and datasets index redirects to /datasets/customer-cleanup.
-  - Dynamic metadata for dataset workspace routes.
-  - Segment-level loading.tsx, error.tsx, and not-found.tsx files for dataset routes.
-  - Next.js 16 promise-based params handling in dynamic route pages.
+### Audit & History
 
-  ## Architecture Highlights
+* Transformation history
+* Field-level change tracking
+* Undo support
+* Conflict detection
+* Audit trail route
 
-  ## Architecture Diagram
+### Export
+
+* Export current dataset
+* Export selected rows
+* CSV generation
+* Formula injection protection
+
+### Browser AI
+
+* Local WebLLM execution
+* WebGPU acceleration
+* AI-assisted review insights
+* Deterministic fallback mode
+* No external AI API required
+
+---
+
+# Screenshots
+
+Add screenshots before publishing:
+
+| View                   | Screenshot                                       |
+| ---------------------- | ------------------------------------------------ |
+| Workspace Overview     | `/public/screenshots/workspace-overview.png`     |
+| Records Table          | `/public/screenshots/records-table.png`          |
+| Review Queue           | `/public/screenshots/review-queue.png`           |
+| AI Insights            | `/public/screenshots/ai-insights.png`            |
+| Transformation History | `/public/screenshots/transformation-history.png` |
+| Audit Trail            | `/public/screenshots/audit-trail.png`            |
+
+---
+
+# Technology Stack
+
+### Framework
+
+* Next.js 16
+* React 19
+* TypeScript
+
+### UI
+
+* Tailwind CSS
+* Radix UI
+* shadcn/ui
+* Lucide Icons
+
+### Data Processing
+
+* XLSX
+* React Dropzone
+* Browser Web Workers
+
+### Browser AI
+
+* WebLLM
+* WebGPU
+
+### Quality
+
+* ESLint
+* Vitest
+* Testing Library
+* jsdom
+
+---
+
+# Routes
+
+| Route                         | Purpose                      |
+| ----------------------------- | ---------------------------- |
+| `/`                           | Redirects to default dataset |
+| `/datasets`                   | Dataset entry point          |
+| `/datasets/customer-cleanup`  | Customer cleanup workspace   |
+| `/datasets/sales-audit`       | Sales audit workspace        |
+| `/datasets/marketing-leads`   | Marketing leads workspace    |
+| `/datasets/[datasetId]/audit` | Dataset audit history        |
+
+Each workspace maintains separate local persistence and audit history.
+
+---
+
+# Architecture Overview
 
 ```text
-App Router Route
-        │
-        ▼
+Next.js Route
+      |
+      v
 Dataset Workspace Container
-        │
-        ▼
-Workflow Reducer
-        │
- ┌──────┼─────────┬─────────┐
- ▼      ▼         ▼         ▼
-Parser  Audit     Table     Persistence
-Adapter Events    Query     Repository
-                  Adapter
-        │
-        ▼
-localStorage Draft Cache
+      |
+      +-------------------------+
+      |                         |
+      v                         v
+Workflow Reducer         Table State
+      |                         |
+      v                         v
+Validation Engine      Query Adapter
+      |
+      v
+Suggestions
+      |
+      v
+Transformations
+      |
+      v
+Audit Trail
+      |
+      v
+Local Storage Repository
+
+Browser AI
+      |
+      v
+WebLLM Worker
+      |
+      v
+AI Findings
+      |
+      v
+Review Queue
 ```
 
-  ### Route-Owned Workspaces
+The application follows a feature-oriented architecture where routes remain thin and business logic is organized into dedicated features, hooks, reducers, utilities, repositories, and adapters.
 
-  Dataset workspaces are represented by route params. The dynamic route /datasets/[datasetId] resolves the id through dataset-
-  registry.ts and passes the workspace into the dashboard shell.
+---
 
-  The current registry is local and static. It is a placeholder for a future server-backed dataset lookup.
+# State Management
 
-  ### Reducer-Based Workflow State
+The application intentionally avoids global state libraries.
 
-  The dataset workflow is modeled through workflowReducer and useDatasetWorkflow.
+Workflow state is managed through:
 
-  The reducer owns workflow transitions for upload, processing, completion, failure, suggestion review, manual edits, undo, bulk
-  review, audit events, and draft restoration.
+```text
+useReducer
+      |
+      v
+workflowReducer
+      |
+      v
+Dataset Workflow State
+```
 
-  ### Workflow Repository Abstraction
+The reducer controls:
 
-  DatasetWorkflowRepository defines a persistence contract with loadDraft, saveDraft, and clearDraft.
+* Upload lifecycle
+* Dataset records
+* Suggestions
+* Transformations
+* Audit events
+* Review state
+* AI findings
 
-  The implemented repository is localWorkflowRepository, which stores workflow drafts in localStorage. The interface is intentionally
-  shaped so a server-backed repository can replace the local implementation later.
+Table state is separated into dedicated hooks to avoid coupling workflow logic with UI interactions.
 
-  ### Parser Adapter Boundary
+---
 
-  DatasetParser defines the parser contract. The active implementation uses a browser worker via workerDatasetParser.
+# Data Flow
 
-  The worker parser keeps heavier XLSX parsing away from the main UI thread. A local client parser also exists as a simpler prototype
-  adapter.
+```text
+Upload File
+      |
+      v
+Worker Parsing
+      |
+      v
+Validation
+      |
+      v
+Dataset Profile
+      |
+      v
+Suggestions
+      |
+      v
+Review Workflow
+      |
+      v
+Transformations
+      |
+      v
+Audit Events
+      |
+      v
+Export
+```
 
-  ### Table Query Adapter Boundary
+Workflow changes are persisted locally and can be restored when revisiting a dataset workspace.
 
-  DatasetTableQueryAdapter defines synchronous and asynchronous row query methods.
+---
 
-  The current adapter, localTableQueryAdapter, performs in-memory search, filtering, sorting, and pagination. The async method is a
-  migration boundary for a future worker or server-backed query implementation.
+# AI Approach
 
-  ### Audit Event Model
+CleanFlow AI separates deterministic validation from AI-generated observations.
 
-  Audit events capture source, actor, operation, affected row ids, optional field changes, and status.
+## Deterministic Validation
 
-  The current audit model is local and mutable because it is stored as part of the browser and manual edits create transformation
-  records. These records include affected rows, field-level before/after values, timestamps, and revert status.
+Source of truth for:
 
-  ### Undo Conflict Handling
+* Missing values
+* Invalid emails
+* Invalid dates
+* Review queue generation
 
-  Undo only reverts a field when the current value still matches the transformation's recorded afterValue. If some values no longer
-  match, the transformation is marked with partial_conflict instead of blindly overwriting newer changes.
+## Browser AI
 
-  ## Architecture Decisions
+On supported devices:
 
-  - Keep route files thin and move interactive workspace behavior into feature/container code.
-  - Use a reducer for workflow transitions instead of scattering workflow mutations across components.
-  - Keep localStorage behind repository and storage helpers so persistence can be replaced.
-  - Use explicit adapter interfaces for parsing and table queries.
-  - Treat local dataset analysis as a deterministic mock/prototype substitute for a future AI or backend analysis service.
-  - Preserve audit and transformation concepts even though the current storage layer is local.
-  - Keep App Router pages as server components where possible and isolate browser APIs in client components.
-  - Scope table and column preferences to schema/workspace identity.
+* Loads a local WebLLM model
+* Executes entirely in the browser
+* Uses WebGPU acceleration
+* Analyzes a capped sample of dataset rows
+* Produces supplemental observations
 
-  ## Tech Stack
+The model is explicitly instructed not to invent validation issues and cannot override deterministic findings.
 
-  Technologies present in package.json and used by the current source:
+## Fallback Mode
 
-  - Next.js 16
-  - React 19
-  - TypeScript
-  - Tailwind CSS 4
-  - shadcn-style UI components
-  - Radix UI primitives
-  - lucide-react
-  - react-dropzone
-  - xlsx
-  - sonner
-  - Vitest
-  - Testing Library
-  - jsdom
-  - ESLint
+If:
 
-  Dependencies present in package.json but not meaningfully used by the current implementation should not be read as implemented
-  product capabilities.
+* WebGPU is unavailable
+* Model loading fails
+* AI generation times out
 
-  ## Folder Structure
+the application continues functioning with deterministic insights only.
 
-  cleanflow-ai/
-    docs/
-      frontend-architecture.md
-      architecture-snapshot.txt
-    public/
-    src/
-      app/
-        page.tsx
-        layout.tsx
-        loading.tsx
-        error.tsx
-        datasets/
-          page.tsx
-          layout.tsx
-          [datasetId]/
-            page.tsx
-            loading.tsx
-            error.tsx
-            not-found.tsx
-            audit/
-              page.tsx
-              loading.tsx
-      components/
-        ai/
-        dataset/
-        layout/
-        ui/
-        upload/
-      features/
-        datasets/
-          components/
-          config/
-          containers/
-          hooks/
-          parsing/
-          table/
-          types/
-          utils/
-          workflow/
-      lib/
-      mock/
-      types/
-    package.json
-    vitest.config.ts
-    eslint.config.mjs
-    next.config.ts
+No external AI API is configured in this repository.
 
-  ## State Management Design
+---
 
-  CleanFlow AI uses local React state and reducers. It does not currently use a global external state store.
+# Performance Considerations
 
-  The main workflow state lives in useDatasetWorkflow, which wraps workflowReducer.
+### Worker-Based Parsing
 
-  The workflow state includes:
+CSV and XLSX parsing execute in browser workers to avoid blocking the UI thread.
 
-  - dataset id
-  - file name
-  - upload/workflow status
-  - parsed columns
-  - analyzed rows
-  - generated suggestions
-  - selected suggestion id
-  - activity messages
-  - dataset profile
-  - transformations
-  - audit events
-  - progress and error state
+### Browser AI Isolation
 
-  Table state is separated into useDatasetTableState, which owns:
+WebLLM inference runs inside a dedicated worker to reduce UI contention during model execution.
 
-  - search query
-  - deferred search query
-  - status filter
-  - sorting
-  - pagination
-  - selected row ids
-  - inspected row
-  - editing cell
-  - draft edit value
+### Local Query Adapter
 
-  Column visibility state is separated into useColumnVisibilityPreferences.
+Filtering and sorting are isolated behind query adapter boundaries to allow future replacement with server-side implementations.
 
-  ## Data Flow Diagram
+### Chunked AI Analysis
 
-  User opens /datasets/[datasetId]
-          |
-          v
-  App Router page resolves workspace from local dataset registry
-          |
-          v
-  DatasetWorkspaceContainer mounts client workflow
-          |
-          v
-  localWorkflowRepository attempts to restore draft from localStorage
-          |
-          v
-  User uploads CSV/XLSX file
-          |
-          v
-  workerDatasetParser parses file in browser worker
-          |
-          v
-  createParsedDataset normalizes headers and row values
-          |
-          v
-  analyzeDataset creates validation states and suggestions
-          |
-          v
-  workflowReducer stores rows, columns, suggestions, profile, activity
-          |
-          v
-  Dataset table queries rows through localTableQueryAdapter
-          |
-          v
-  User reviews suggestions, edits cells, marks rows reviewed, or undoes changes
-          |
-          v
-  workflowReducer records transformations and audit events
-          |
-          v
-  localWorkflowRepository persists draft to localStorage
-          |
-          v
-  User exports full dataset or selected visible rows as CSV
+AI analysis is performed on limited row samples in small batches to avoid excessive browser resource consumption.
 
-  ## Current Limitations
+---
 
-  - No backend API.
-  - No authentication or authorization.
-  - No server-side dataset storage.
-  - No real AI model or external AI service integration.
-  - Dataset registry is static and local.
-  - Audit events are local draft records, not immutable server records.
-  - Table querying is in-memory.
-  - Table virtualization is indicated in render state but not implemented.
-  - File parsing runs in the browser and is intended for demo-scale datasets.
-  - The audit route reads local draft state and does not validate the dataset id against a backend.
-  - No deployed environment is configured in this repository.
-  - No end-to-end browser tests are included.
-  - No screenshots are currently committed.
+# Engineering Highlights
 
-  ## Prototype Limitations
+### Explicit Workflow Model
 
-  This project should be evaluated as a frontend prototype, not a production data platform.
+Workflow transitions are represented as reducer actions rather than scattered component state.
 
-  The localStorage draft cache is used to demonstrate persistence boundaries and workflow restoration. It should not be treated as
-  authoritative storage for production data.
+### Adapter Boundaries
 
-  The generated suggestions are deterministic local analysis results. They are not produced by an AI model in the current codebase.
+Parsing, querying, persistence, and AI integrations are abstracted behind interfaces that can be replaced without changing the UI layer.
 
-  The parser, table query adapter, and workflow repository are intentionally shaped as migration boundaries. Their current
-  implementations are local-browser implementations.
+### Auditability
 
-  ## Future Enhancements
+Transformations retain field-level before/after values and support safe undo operations.
 
-  - Replace the static dataset registry with server-loaded dataset resources.
-  - Add a server-backed workflow repository.
-  - Persist immutable audit events and dataset versions.
-  - Move dataset analysis to a backend job or AI-assisted service.
-  - Add upload job status and server-side file validation.
-  - Add table virtualization for larger datasets.
-  - Add cursor-based server querying for large row sets.
-  - Add route-level authorization.
-  - Add component and end-to-end tests for the upload/review/export workflows.
-  - Add screenshots or a short demo recording.
+### Local-First Architecture
 
-  ## Local Development
+Persistence is intentionally browser-local while maintaining clean repository boundaries for future server implementations.
 
-### Install Dependencies
+### Route-Scoped Workspaces
+
+Each dataset workspace maintains independent state and persistence.
+
+---
+
+# Engineering Decisions & Tradeoffs
+
+### Reducer-Owned Workflow State
+
+Dataset lifecycle transitions—including uploading, processing, review actions, edits, undo operations, audit events, and restoration—are centralized within a dedicated workflow reducer. This makes state transitions explicit, testable, and easier to reason about. The tradeoff is additional domain-model complexity compared with isolated component state.
+
+### Separate Workflow, Table, and Preference State
+
+Workflow state, table interactions, and user preferences are managed independently through dedicated hooks and adapters. This prevents a single oversized state model and keeps responsibilities clear, though it requires coordination between workflow and table layers.
+
+### Route-Scoped Workspaces
+
+Dataset identity is derived from route parameters (`/datasets/[datasetId]`), allowing each workspace to maintain independent state and browser persistence. This makes ownership boundaries explicit, with the tradeoff that the current dataset registry is static rather than server-driven.
+
+### Browser Worker Parsing
+
+CSV and XLSX parsing execute inside a Web Worker to keep expensive workbook processing off the main thread. The application intentionally limits uploads to 5 MB and 5,000 rows, which is appropriate for a browser-first prototype but not for large-scale ingestion workloads.
+
+### Deterministic Validation as the Source of Truth
+
+Validation logic for missing values and invalid email/date-like fields is deterministic and local. This keeps record status and review workflows predictable. The tradeoff is narrower validation coverage compared with domain-specific or server-side validation systems.
+
+### Browser AI as Supplemental Guidance
+
+WebLLM runs a local WebGPU model in a dedicated worker to generate higher-level observations. Deterministic validation remains authoritative, and AI findings must be explicitly added to the Review Queue. This prevents probabilistic outputs from becoming workflow truth while introducing dependency on device capability and model-loading constraints.
+
+### Graceful AI Fallback
+
+When WebGPU is unavailable or model execution fails, the application falls back to deterministic insights rather than blocking the review workflow. This preserves usability but limits discovery to existing validation evidence.
+
+### Repository and Adapter Boundaries
+
+Parsing, persistence, and query operations are expressed through adapters and repository abstractions. Current implementations use browser workers, localStorage, and in-memory queries. The additional abstraction introduces some complexity today but creates clear replacement seams for server-backed implementations later.
+
+### Local Draft Persistence
+
+Workflow drafts are restored from localStorage and normalized during reload. This supports a realistic local-first experience without requiring backend infrastructure. The tradeoff is that browser storage is not suitable for collaboration, durable audit requirements, or sensitive production datasets.
+
+### Audit History and Safe Undo
+
+Transformations retain field-level before-and-after values. Undo operations only revert values that still match the recorded post-change state, preventing accidental overwrites of newer edits. This favors data integrity over simplistic rollback behavior.
+
+### Paginated Data Grid
+
+The table supports dynamic schemas, search, filtering, sorting, selection, column pinning, inline editing, and pagination through a local query adapter. Virtualization is intentionally deferred because current upload constraints keep datasets within manageable limits.
+
+### Client-Side Export Safety
+
+CSV exports reflect the current workflow state and apply formula-injection mitigation by prefixing formula-like values. This is a practical browser-only safeguard, though production systems would typically add authorization, logging, and server-side export controls.
+
+---
+
+# Testing
+
+```bash
+npm run lint
+npm run build
+npm run test:run
+```
+
+Coverage includes:
+
+* Workflow reducer behavior
+* Dataset parsing
+* Validation logic
+* Suggestion application
+* Table state management
+* Browser AI helpers
+* UI state transitions
+
+---
+
+# Local Setup
+
+## Prerequisites
+
+* Node.js
+* npm
+
+## Installation
 
 ```bash
 npm install
 ```
 
-### Run Development Server
+## Development
 
 ```bash
 npm run dev
@@ -429,92 +503,49 @@ Open:
 http://localhost:3000/datasets/customer-cleanup
 ```
 
-### Available Demo Workspaces
+---
 
-```text
-/datasets/customer-cleanup
-/datasets/sales-audit
-/datasets/marketing-leads
-```
+# Available Scripts
 
-## Build & Test Commands
+| Command          | Purpose                 |
+| ---------------- | ----------------------- |
+| npm run dev      | Development server      |
+| npm run build    | Production build        |
+| npm run start    | Start production build  |
+| npm run lint     | Run ESLint              |
+| npm run test     | Run tests in watch mode |
+| npm run test:run | Run tests once          |
 
-### Lint
+---
 
-```bash
-npm run lint
-```
+# Design Boundaries
 
-### Run Tests
+CleanFlow AI is intentionally designed as a browser-first frontend application.
 
-```bash
-npm run test:run
-```
+The project focuses on:
 
-### Run Tests (Watch Mode)
+- Dataset review workflows
+- Data-intensive UI patterns
+- State management
+- Browser-based processing
+- Local AI inference
+- Auditability and change tracking
 
-```bash
-npm run test
-```
+Backend services, authentication, collaboration features, and server-side persistence were intentionally excluded to keep the project focused on frontend architecture and user experience design.
 
-### Production Build
+---
 
-```bash
-npm run build
-```
+# Key Engineering Challenges Solved
 
-  ## Screenshots Section
+- Dynamic schema rendering from arbitrary uploaded datasets
+- Maintaining responsive UI during file parsing and AI analysis
+- Coordinating workflow, table, audit, and AI state without global state libraries
+- Preserving auditability while supporting undo operations
+- Separating deterministic validation from probabilistic AI guidance
+- Designing extensible repository and adapter boundaries for future infrastructure replacements
 
-  Screenshots are not currently committed to the repository.
+---
 
-  Suggested captures before sharing this project in applications:
+# License
 
-  - Empty workspace before upload.
-  - Upload and processing state.
-  - Dataset table with validation highlighting.
-  - Suggestion review panel with highlighted affected rows.
-  - Inline cell editing.
-  - Transformation history with undo state.
-  - Audit route with recorded events.
-  - CSV export action.
-
-  ## Portfolio Discussion Points
-
-  A senior frontend interviewer should notice:
-
-  - The App Router route structure models dataset workspaces explicitly.
-  - Dynamic route params follow the Next.js 16 promise-based API.
-  - Workflow transitions are centralized in a reducer instead of being spread across UI components.
-  - Browser-local persistence is hidden behind a repository contract.
-  - Parser and table query behavior are behind adapter interfaces.
-  - The project distinguishes validation state from human review state.
-  - Suggestions, manual edits, transformations, undo, and audit events are modeled as separate concepts.
-  - Undo behavior avoids overwriting newer user changes when a partial conflict is detected.
-  - CSV export includes formula-injection mitigation.
-  - The README and architecture docs describe what is implemented locally versus what would need to move server-side.
-
-  ## What This Demonstrates
-
-This project demonstrates:
-
-- Next.js 16 App Router architecture
-- Dynamic route ownership patterns
-- Reducer-based workflow state management
-- Repository and adapter design patterns
-- Browser worker integration
-- Data-heavy table interactions
-- Audit and undo workflows
-- Local persistence and restoration strategies
-- Migration-ready frontend architecture
-- Type-safe React application design
-
-  ## Interview Talking Points
-
-  - Why the current implementation uses local browser state for a portfolio prototype.
-  - How the workflow repository could be replaced with a server implementation.
-  - How the worker parser boundary could evolve into upload jobs and backend parsing.
-  - How the table query adapter could evolve into worker-based or server-side querying.
-  - How audit events would need to change for compliance-grade immutability.
-  - Why review state and validation state should remain separate.
-  - What changes are required before handling large datasets.
-  - What tests should be added before treating the workflow as release-ready.
+See the LICENSE file for details.

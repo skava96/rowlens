@@ -27,8 +27,8 @@ type Props = {
   status: UploadCardStatus;
   fileName?: string | null;
   error?: string;
+  variant?: "full" | "compact";
 };
-
 
 function getUploadError(rejection: FileRejection) {
   const firstError = rejection.errors[0];
@@ -36,7 +36,7 @@ function getUploadError(rejection: FileRejection) {
   if (!firstError) return "File could not be uploaded.";
 
   if (firstError.code === "file-too-large") {
-    return "File is too large. Maximum allowed size is 10MB.";
+    return `File is too large. Maximum allowed size is ${DATASET_UPLOAD_CONSTRAINTS.maxFileSizeMb}MB.`;
   }
 
   if (firstError.code === "file-invalid-type") {
@@ -62,6 +62,7 @@ export function UploadCard({
   status,
   fileName,
   error,
+  variant = "full",
 }: Props) {
   const isUploadLocked = status === "uploading" || status === "processing";
   const hasDataset =
@@ -89,8 +90,6 @@ export function UploadCard({
       ? getUploadError(firstRejection)
       : "Upload failed. Please try again.";
 
-    // Dropzone-only validation errors are shown through native alert here
-    // because workflow errors should remain server/workflow-owned.
     toast.error("Upload failed", {
       description: message,
     });
@@ -118,6 +117,37 @@ export function UploadCard({
     ? `${dropzoneBase} border-primary bg-muted/50`
     : `${dropzoneBase} border-border bg-muted/10 hover:bg-muted/30`;
 
+  if (variant === "compact" && hasDataset) {
+    return (
+      <section className="w-full rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+
+            <div>
+              <p className="text-sm font-semibold text-foreground">Dataset Loaded</p>
+              <p className="mt-0.5 text-sm text-foreground">{fileName}</p>
+              <p className="text-xs text-muted-foreground">
+                Dataset ready for review. Upload a new CSV or XLSX file to replace it.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={open}
+            disabled={isUploadLocked}
+            className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Replace dataset
+          </button>
+        </div>
+
+        <input {...getInputProps()} />
+      </section>
+    );
+  }
+
   return (
     <section className="w-full rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="grid gap-4 lg:grid-cols-[1.05fr_1.35fr] lg:items-stretch">
@@ -130,8 +160,8 @@ export function UploadCard({
             <div>
               <h1 className="text-lg font-semibold">Upload Dataset</h1>
               <p className="mt-1 max-w-xl text-sm leading-5 text-muted-foreground">
-                Upload CSV or Excel datasets for AI-assisted validation and
-                cleaning.
+                Upload CSV or Excel datasets for assisted validation, review,
+                and cleanup.
               </p>
             </div>
           </div>
@@ -180,7 +210,8 @@ export function UploadCard({
                     Supported formats: CSV, XLSX
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Maximum file size: {DATASET_UPLOAD_CONSTRAINTS.maxFileSizeMb}MB
+                    Maximum file size:{" "}
+                    {DATASET_UPLOAD_CONSTRAINTS.maxFileSizeMb}MB
                   </p>
                 </div>
               </div>

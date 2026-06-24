@@ -141,6 +141,8 @@ export function useColumnVisibilityPreferences({
 
     const wasVisible = visibleColumnKeySet.has(columnKey);
 
+    if (wasVisible && activeVisibleColumnKeys.length <= 1) return;
+
     setVisibleColumnKeys((current) => {
       const currentKeys = current ?? defaultVisibleColumnKeys;
 
@@ -163,7 +165,9 @@ export function useColumnVisibilityPreferences({
   };
 
   const hideAllColumns = () => {
-    setVisibleColumnKeys([]);
+    const fallbackColumnKey = defaultVisibleColumnKeys[0];
+
+    setVisibleColumnKeys(fallbackColumnKey ? [fallbackColumnKey] : []);
     setPinnedColumnKeys([]);
   };
 

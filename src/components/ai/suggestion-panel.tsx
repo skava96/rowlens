@@ -6,7 +6,7 @@ import {
   Eye,
   Rows3,
   ShieldAlert,
-  Sparkles,
+  WandSparkles,
   XCircle,
 } from "lucide-react";
 
@@ -32,6 +32,11 @@ type Props = {
 
 function formatAction(action: AISuggestion["action"]) {
   return action.replaceAll("_", " ");
+}
+
+function formatReviewCount(count: number) {
+  return `${count} review ${count === 1 ? "item" : "items"} require${count === 1 ? "s" : ""
+    } attention`;
 }
 
 function hasSuggestedValue(suggestion: AISuggestion) {
@@ -60,7 +65,7 @@ function getSeverityVariant(severity: AISuggestion["severity"]) {
 }
 
 function getStatusTone(status: AISuggestion["status"]) {
-  if (status === "approved") {
+  if (status === "approved" || status === "resolved") {
     return "border-emerald-200 bg-emerald-50/40";
   }
 
@@ -69,6 +74,17 @@ function getStatusTone(status: AISuggestion["status"]) {
   }
 
   return "border-border bg-background";
+}
+
+function getResolvedRowCount(suggestion: AISuggestion) {
+  return suggestion.resolvedRows?.length ?? 0;
+}
+
+function getRemainingRowCount(suggestion: AISuggestion) {
+  return Math.max(
+    0,
+    suggestion.affectedRows.length - getResolvedRowCount(suggestion)
+  );
 }
 
 function SuggestionCard({
@@ -85,9 +101,13 @@ function SuggestionCard({
   onReview: (id: string) => void;
 }) {
   const isResolved =
-    suggestion.status === "approved" || suggestion.status === "ignored";
+    suggestion.status === "approved" ||
+    suggestion.status === "ignored" ||
+    suggestion.status === "resolved";
 
   const hasAutoFix = canApplyAutoFix(suggestion);
+  const resolvedRowCount = getResolvedRowCount(suggestion);
+  const remainingRowCount = getRemainingRowCount(suggestion);
 
   return (
     <article
@@ -95,8 +115,8 @@ function SuggestionCard({
         "relative overflow-hidden rounded-xl border px-5 py-4 shadow-sm transition-colors",
         getStatusTone(suggestion.status),
         suggestion.status === "pending" &&
-          isPriority &&
-          "border-sky-300 bg-sky-50/30"
+        isPriority &&
+        "border-sky-300 bg-sky-50/30"
       )}
     >
       {suggestion.status === "pending" && isPriority && (
@@ -112,7 +132,7 @@ function SuggestionCard({
 
             <Badge
               variant={
-                suggestion.status === "approved"
+                suggestion.status === "approved" || suggestion.status === "resolved"
                   ? "secondary"
                   : suggestion.status === "ignored"
                     ? "destructive"
@@ -120,13 +140,16 @@ function SuggestionCard({
               }
               className="h-5 px-2 text-[11px] capitalize"
             >
-              {suggestion.status === "approved" && (
+              {(suggestion.status === "approved" ||
+                suggestion.status === "resolved") && (
                 <CheckCircle2 className="mr-1 h-3 w-3" />
               )}
               {suggestion.status === "ignored" && (
                 <XCircle className="mr-1 h-3 w-3" />
               )}
-              {suggestion.status}
+              {suggestion.status === "resolved"
+                ? "resolved"
+                : suggestion.status}
             </Badge>
           </div>
 
@@ -137,12 +160,27 @@ function SuggestionCard({
           <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1">
               <Rows3 className="h-3 w-3" />
-              {suggestion.affectedRows.length} affected{" "}
-              {suggestion.affectedRows.length === 1 ? "row" : "rows"}
+              {suggestion.status === "pending" && resolvedRowCount > 0
+                ? `${remainingRowCount} still needs attention`
+                : `${suggestion.affectedRows.length} affected ${
+                    suggestion.affectedRows.length === 1 ? "row" : "rows"
+                  }`}
             </span>
 
+            {suggestion.status === "pending" && resolvedRowCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
+                {resolvedRowCount} manually resolved
+              </span>
+            )}
+
+            {suggestion.status === "resolved" && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
+                Resolved by manual edits
+              </span>
+            )}
+
             <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1 capitalize">
-              <Sparkles className="h-3 w-3" />
+              <WandSparkles className="h-3 w-3" />
               {formatAction(suggestion.action)}
             </span>
 
@@ -163,7 +201,10 @@ function SuggestionCard({
             {suggestion.severity}
           </Badge>
 
-          <Badge variant="outline" className="h-6 bg-background px-2 text-[11px]">
+          <Badge
+            variant="outline"
+            className="h-6 bg-background px-2 text-[11px]"
+          >
             {suggestion.confidence}% confidence
           </Badge>
         </div>
@@ -171,8 +212,8 @@ function SuggestionCard({
 
       {suggestion.status === "pending" && !hasAutoFix && (
         <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-sm text-sky-800">
-          No auto-fix available. Review the affected row and edit it manually if
-          needed.
+          No automatic fix is available. Review the affected row and edit it
+          manually if needed.
         </div>
       )}
 
@@ -232,7 +273,7 @@ export default function SuggestionPanel({
         <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
         <CardTitle className="mt-3">No dataset uploaded yet</CardTitle>
         <CardDescription className="mt-1">
-          Upload a file to see AI suggestions.
+          Upload a file or load the sample workspace to see review suggestions.
         </CardDescription>
       </Card>
     );
@@ -242,7 +283,7 @@ export default function SuggestionPanel({
     return (
       <Card>
         <CardContent className="p-4 text-sm text-muted-foreground">
-          No suggestions available.
+          No review suggestions were found for this dataset.
         </CardContent>
       </Card>
     );
@@ -259,16 +300,26 @@ export default function SuggestionPanel({
   const priority = pendingSuggestions[0];
   const remainingPendingSuggestions = pendingSuggestions.slice(1);
 
+  const hasPendingSuggestions = pendingSuggestions.length > 0;
+
   return (
     <div className="space-y-4">
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <CardTitle className="text-lg">Review Queue</CardTitle>
+
+          <span className="text-sm font-semibold text-foreground">
+            {hasPendingSuggestions
+              ? formatReviewCount(pendingSuggestions.length)
+              : "All recommendations reviewed"}
+          </span>
         </div>
 
-        <CardDescription className="mt-1">
-          Review AI-detected data quality issues before fixing or ignoring them.
+        <CardDescription className="mt-3">
+          {hasPendingSuggestions
+            ? "Review affected rows, apply fixes where appropriate, and complete all recommendations before export."
+            : "All detected recommendations have been approved, ignored, or resolved by manual edits. You can inspect resolved decisions below or continue to export."}
         </CardDescription>
       </div>
 
@@ -287,7 +338,7 @@ export default function SuggestionPanel({
               All suggestions reviewed
             </p>
             <p className="mt-1 text-sm text-emerald-800">
-              There are no pending AI recommendations for this dataset.
+              There are no pending review suggestions for this dataset.
             </p>
           </div>
         )}

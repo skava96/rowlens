@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   ArrowRight,
-  Bot,
   CheckCircle2,
   Clock3,
   RotateCcw,
@@ -65,15 +64,15 @@ function getSourceMeta(transformation: DatasetTransformation) {
 
   if (transformation.action === "flag_invalid") {
     return {
-      label: "AI Reviewed",
-      icon: Bot,
+      label: "Reviewed",
+      icon: ShieldCheck,
       className: "border-sky-100 bg-sky-50 text-sky-700",
     };
   }
 
   return {
-    label: "AI Applied",
-    icon: Bot,
+    label: "Fix Applied",
+    icon: CheckCircle2,
     className: "border-emerald-100 bg-emerald-50 text-emerald-700",
   };
 }
@@ -96,12 +95,11 @@ export function TransformationHistory({
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">
-              Transformation History
-            </h2>
+            <h2 className="text-lg font-semibold">Review History</h2>
 
             <p className="text-sm text-muted-foreground">
-              Review applied AI suggestions, manual edits, reversions, and before/after values.
+              Review applied fixes, manual edits, reversions, and before/after
+              values.
             </p>
           </div>
         </div>
@@ -118,19 +116,18 @@ export function TransformationHistory({
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">
-              Transformation Audit Log
-            </h2>
+            <h2 className="text-lg font-semibold">Review History</h2>
 
             <p className="text-sm text-muted-foreground">
-              Trace applied suggestions, manual edits, affected rows, review decisions, and
-              before/after values.
+              Trace applied fixes, manual edits, affected rows, review
+              decisions, and before/after values.
             </p>
           </div>
         </div>
 
         <div className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
-          {transformations.length} audit events
+          {transformations.length} recorded{" "}
+          {transformations.length === 1 ? "change" : "changes"}
         </div>
       </div>
 
@@ -149,7 +146,8 @@ export function TransformationHistory({
                   "rounded-xl border bg-background px-4 py-3 transition-colors",
                   transformation.revertStatus === "partial_conflict"
                     ? "border-amber-200 bg-amber-50/30"
-                    : transformation.reverted || transformation.revertStatus === "reverted"
+                    : transformation.reverted ||
+                        transformation.revertStatus === "reverted"
                       ? "border-slate-200 bg-slate-50/40"
                       : "border-border"
                 )}
@@ -246,8 +244,8 @@ export function TransformationHistory({
                       </div>
                     ) : (
                       <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2 text-sm text-sky-800">
-                        No field values were changed. This action recorded a review decision for
-                        the affected rows.
+                        No field values were changed. This action recorded a
+                        review decision for the affected rows.
                       </div>
                     )}
                   </div>
@@ -257,7 +255,8 @@ export function TransformationHistory({
                       <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
                         Partial conflict
                       </span>
-                    ) : transformation.reverted || transformation.revertStatus === "reverted" ? (
+                    ) : transformation.reverted ||
+                      transformation.revertStatus === "reverted" ? (
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                         Reverted
                       </span>
@@ -266,8 +265,10 @@ export function TransformationHistory({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => onUndoTransformation?.(transformation.id)}
-                        aria-label={`Undo transformation: ${transformation.suggestionTitle}`}
+                        onClick={() =>
+                          onUndoTransformation?.(transformation.id)
+                        }
+                        aria-label={`Undo change: ${transformation.suggestionTitle}`}
                       >
                         <RotateCcw className="mr-2 h-3.5 w-3.5" />
                         Undo

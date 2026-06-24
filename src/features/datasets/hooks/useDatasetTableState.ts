@@ -245,11 +245,13 @@ export function useDatasetTableState({
     const resetFilters = () => {
         setStatusFilter("all");
         setSearchQuery("");
+        setColumnFilters([]);
         setCurrentPage(1);
 
         saveTablePreferences({
             searchQuery: "",
             statusFilter: "all",
+            columnFilters: [],
         });
         clearSelectionState();
     };
@@ -342,6 +344,8 @@ export function useDatasetTableState({
         ];
 
         setColumnFilters(nextFilters);
+        setCurrentPage(1);
+        clearSelectionState();
         saveTablePreferences({ columnFilters: nextFilters });
     };
     const removeColumnFilter = (index: number) => {
@@ -350,6 +354,8 @@ export function useDatasetTableState({
         );
 
         setColumnFilters(nextFilters);
+        setCurrentPage(1);
+        clearSelectionState();
 
         saveTablePreferences({
             columnFilters: nextFilters,
@@ -368,6 +374,8 @@ export function useDatasetTableState({
         );
 
         setColumnFilters(nextFilters);
+        setCurrentPage(1);
+        clearSelectionState();
 
         saveTablePreferences({
             columnFilters: nextFilters,
@@ -376,6 +384,8 @@ export function useDatasetTableState({
 
     const clearAllFilters = () => {
         setColumnFilters([]);
+        setCurrentPage(1);
+        clearSelectionState();
 
         saveTablePreferences({
             columnFilters: [],
