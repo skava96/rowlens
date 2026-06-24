@@ -301,13 +301,6 @@ export async function runProgressiveDatasetAIAnalysis(
     options.rowAnalysisTimeoutMs ?? AI_ROW_ANALYSIS_TIMEOUT_MS;
   const initialState = createBaseAnalysisState(input, "checking");
 
-  console.info("CleanFlow AI analysis started", {
-    rows: input.rowCount,
-    analysisTargetRows: input.analysisRows.length,
-    providerName: browserProvider.name,
-    modelName: browserProvider.modelName,
-  });
-
   options.onUpdate?.({
     ...initialState,
     providerName: browserProvider.name,
@@ -315,30 +308,15 @@ export async function runProgressiveDatasetAIAnalysis(
   });
 
   try {
-    console.info("[AI] availability check start", {
-      providerName: browserProvider.name,
-      modelName: browserProvider.modelName,
-    });
-
     const availability = await withTimeout({
       promise: browserProvider.getAvailability(),
       label: "Browser AI availability check",
       timeoutMs: availabilityTimeoutMs,
     });
 
-    console.info("[AI] availability check result", availability);
-    console.info("CleanFlow AI availability result", availability);
-
     if (options.isCancelled?.()) return initialState;
 
     if (availability.status !== "available") {
-      console.info("[AI] fallback entered", {
-        reason: availability.reason,
-      });
-      console.info("CleanFlow AI fallback entered", {
-        reason: availability.reason,
-      });
-
       const fallbackState = await createFallbackAnalysisState({
         input,
         state,
@@ -352,15 +330,9 @@ export async function runProgressiveDatasetAIAnalysis(
     }
 
     const chunks = createAIRowChunks({ rows: input.analysisRows });
-    console.info("[AI] chunks created", {
-      chunkCount: chunks.length,
-      chunkSize: chunks[0]?.rows.length ?? 0,
-      analysisTargetRows: input.analysisRows.length,
-    });
-
     let mergedFindings: AIModelInsightOutput["findings"] = [];
     const latestSummary =
-      "AI is analyzing rows in the background. Findings will appear as coverage increases.";
+      "Local AI is loading or analyzing sampled rows. Observations will appear if useful supplemental patterns are found.";
     let latestState: AIAnalysisState = {
       status: "loading_model",
       providerName: browserProvider.name,
@@ -375,15 +347,6 @@ export async function runProgressiveDatasetAIAnalysis(
 
     options.onUpdate?.(latestState);
 
-    console.info("[AI] model load start", {
-      modelName: browserProvider.modelName,
-      time: new Date().toISOString(),
-    });
-    console.info("CleanFlow AI model loading started", {
-      modelName: browserProvider.modelName,
-      time: new Date().toISOString(),
-    });
-
     if (browserProvider.loadModel) {
       await withTimeout({
         promise: browserProvider.loadModel(options.onProgress),
@@ -392,14 +355,6 @@ export async function runProgressiveDatasetAIAnalysis(
         onTimeout: () => browserProvider.interrupt?.(),
       });
     }
-
-    console.info("[AI] model load complete", {
-      modelName: browserProvider.modelName,
-      time: new Date().toISOString(),
-    });
-    console.info("CleanFlow AI model loaded", {
-      modelName: browserProvider.modelName,
-    });
 
     let completedRowRange = false;
     let completedRowsAnalyzed = 0;
@@ -410,19 +365,6 @@ export async function runProgressiveDatasetAIAnalysis(
       let output: AIModelInsightOutput;
 
       try {
-        if (!completedRowRange) {
-          console.info("[AI] first chunk start", {
-            start: chunk.startRowNumber,
-            end: chunk.endRowNumber,
-            rows: chunk.rows.length,
-          });
-        }
-
-        console.info("CleanFlow AI row range started", {
-          start: chunk.startRowNumber,
-          end: chunk.endRowNumber,
-        });
-
         output = await withTimeout({
           promise: browserProvider.generateFindingsForRows({
             input,
@@ -437,19 +379,6 @@ export async function runProgressiveDatasetAIAnalysis(
           onTimeout: () => browserProvider.interrupt?.(),
         });
 
-        console.info("CleanFlow AI row range completed", {
-          start: chunk.startRowNumber,
-          end: chunk.endRowNumber,
-          findings: output.findings.length,
-        });
-
-        if (!completedRowRange) {
-          console.info("[AI] first chunk complete", {
-            start: chunk.startRowNumber,
-            end: chunk.endRowNumber,
-            findings: output.findings.length,
-          });
-        }
       } catch (error) {
         console.error("CleanFlow AI row range failed", {
           start: chunk.startRowNumber,
@@ -480,12 +409,6 @@ export async function runProgressiveDatasetAIAnalysis(
         ...mergedFindings,
         ...output.findings,
       ]);
-
-      console.info("[AI] merge findings", {
-        rowsAnalyzed: completedRowsAnalyzed,
-        incomingFindings: output.findings.length,
-        mergedFindings: mergedFindings.length,
-      });
 
       const matchedFindings = matchAIFindingsToSuggestions(
         mergedFindings,
@@ -519,16 +442,6 @@ export async function runProgressiveDatasetAIAnalysis(
     };
     options.onUpdate?.(latestState);
 
-    console.info("[AI] completed", {
-      rowsAnalyzed: latestState.rowsAnalyzed,
-      totalRows: latestState.totalRows,
-      findings: latestState.findings.length,
-    });
-    console.info("CleanFlow AI analysis completed", {
-      rowsAnalyzed: latestState.rowsAnalyzed,
-      findings: latestState.findings.length,
-    });
-
     return latestState;
   } catch (error) {
     console.error("[AI] fallback entered", error);
@@ -552,11 +465,6 @@ export async function runProgressiveDatasetAIAnalysis(
         ? error
         : new Error("Browser AI analysis failed.")
     );
-
-    console.info("[AI] fallback state", {
-      fallbackStatus: fallbackState.status,
-      fallbackFindings: fallbackState.findings.length,
-    });
 
     if (!options.isCancelled?.()) options.onUpdate?.(fallbackState);
     return fallbackState;

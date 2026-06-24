@@ -36,19 +36,19 @@ describe("createAIRowChunks", () => {
     expect(chunks.at(-1)?.endRowNumber).toBe(6);
   });
 
-  it("creates 100 default row ranges for a 5000-row dataset", () => {
+  it("limits default row ranges to the configured analysis cap", () => {
     const chunks = createAIRowChunks({
       rows: createRows(5000),
     });
 
-    expect(chunks).toHaveLength(100);
+    expect(chunks).toHaveLength(6);
     expect(chunks[0]).toMatchObject({
       startRowNumber: 1,
-      endRowNumber: 50,
+      endRowNumber: 5,
     });
     expect(chunks.at(-1)).toMatchObject({
-      startRowNumber: 4951,
-      endRowNumber: 5000,
+      startRowNumber: 26,
+      endRowNumber: 30,
     });
   });
 });

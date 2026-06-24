@@ -7,13 +7,13 @@ import {
   DatasetInsightInput,
 } from "../types";
 import { parseAIFindingsFromText } from "../parseAIFindings";
-import { AI_DEFAULT_MODEL, AI_MAX_PROMPT_CHARACTERS } from "../config";
-import { MLCEngineConfig } from "@mlc-ai/web-llm";
+import {
+  AI_DEFAULT_MODEL,
+  AI_MAX_FINDINGS_PER_CHUNK,
+  AI_MAX_PROMPT_CHARACTERS,
+} from "../config";
+import { ResponseFormat } from "@mlc-ai/web-llm";
 
-type WebLLMResponseFormat = {
-  type: "json_object";
-  schema?: string;
-};
 
 type WebLLMEngine = {
   interruptGenerate?: () => void;
@@ -24,7 +24,7 @@ type WebLLMEngine = {
         messages: { role: "system" | "user"; content: string }[];
         temperature?: number;
         max_tokens?: number;
-        response_format: WebLLMResponseFormat;
+        response_format?: ResponseFormat;
       }) => Promise<{
         choices: {
           finish_reason?: string;
@@ -34,23 +34,37 @@ type WebLLMEngine = {
     };
   };
 };
+
 type WebLLMModule = {
-  CreateWebWorkerMLCEngine?: (
-    worker: Worker,
+  CreateMLCEngine?: (
     model: string,
-    config?: MLCEngineConfig
+    config?: {
+      initProgressCallback?: (progress: {
+        progress?: number;
+        text?: string;
+      }) => void;
+    }
+  ) => Promise<WebLLMEngine>;
+  CreateWebGPUEngine?: (
+    model: string,
+    config?: {
+      initProgressCallback?: (progress: {
+        progress?: number;
+        text?: string;
+      }) => void;
+    }
   ) => Promise<WebLLMEngine>;
 };
-
-async function importWebLLM(): Promise<WebLLMModule> {
-  return import("@mlc-ai/web-llm");
-}
 
 type NavigatorWithWebGPU = Navigator & {
   gpu?: {
     requestAdapter: () => Promise<unknown>;
   };
 };
+
+async function importWebLLM(): Promise<WebLLMModule> {
+  return import("@mlc-ai/web-llm");
+}
 
 async function getWebGPUAvailability(): Promise<AIAvailability> {
   if (typeof window === "undefined") {
@@ -105,7 +119,7 @@ function compactCellValue(value: unknown, columnKey: string) {
     }
   }
 
-  return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
 }
 
 function createCompactRowObject({
@@ -131,38 +145,15 @@ function createPromptPayload({
   input: DatasetInsightInput;
   rows: DatasetInsightAnalysisRow[];
 }) {
-  const dataColumns = input.columns.map((column) => column.key);
-  const rowIds = new Set(rows.map((row) => row.id));
+  const columns = input.columns.map((column) => column.key);
 
   return {
-    datasetProfile: {
-      rowCount: input.rowCount,
-      columnCount: input.columnCount,
-      validRowCount: input.validRowCount,
-      invalidRowCount: input.invalidRowCount,
-      missingRowCount: input.missingRowCount,
-    },
-    deterministicIssues: input.pendingSuggestions
-      .map((suggestion) => ({
-        id: suggestion.id,
-        title: suggestion.title,
-        severity: suggestion.severity,
-        targetField: suggestion.targetField,
-        action: suggestion.action,
-        affectedRowsInCurrentChunk: suggestion.affectedRows.filter((rowId) =>
-          rowIds.has(rowId)
-        ),
-      }))
-      .filter((issue) => issue.affectedRowsInCurrentChunk.length > 0),
-    columns: dataColumns,
-    rowStates: rows.map((row) => ({
-      rowId: row.id,
-      validationState: row.validationState,
-      validationField: row.validationField,
-    })),
-    sampleRows: rows.map((row) =>
+    columns,/* 
+    deterministicIssues: createKnownIssueRows({ input, rows }),
+    rowStates: createRowStateRows(rows), */
+    rows: rows.map((row) =>
       createCompactRowObject({
-        columns: dataColumns,
+        columns,
         row,
       })
     ),
@@ -206,7 +197,8 @@ export function createWebLLMPrompt({
 }
 
 function isTrustedJsonObject(text: string) {
-  return text.trim().startsWith("{") && text.trim().endsWith("}");
+  const trimmed = text.trim();
+  return trimmed.startsWith("{") && trimmed.endsWith("}");
 }
 
 export class BrowserAIProvider implements AIProvider {
@@ -216,13 +208,8 @@ export class BrowserAIProvider implements AIProvider {
 
   private engine: WebLLMEngine | null = null;
   private enginePromise: Promise<WebLLMEngine> | null = null;
-  private worker: Worker | null = null;
 
   interrupt() {
-    console.info("[AI] interrupt requested", {
-      modelName: this.modelName,
-    });
-
     this.engine?.interruptGenerate?.();
   }
 
@@ -232,16 +219,6 @@ export class BrowserAIProvider implements AIProvider {
 
   async loadModel(onProgress?: (progress: AIInsightProgress) => void) {
     return this.getEngine(onProgress);
-  }
-
-  private getWorker() {
-    if (this.worker) return this.worker;
-
-    this.worker = new Worker(new URL("./webllm.worker.ts", import.meta.url), {
-      type: "module",
-    });
-
-    return this.worker;
   }
 
   private async getEngine(onProgress?: (progress: AIInsightProgress) => void) {
@@ -274,37 +251,21 @@ export class BrowserAIProvider implements AIProvider {
       progress: 0,
     });
 
-    console.info("CleanFlow browser AI model loading started", {
-      modelName: this.modelName,
-      time: new Date().toISOString(),
-    });
-
     const webllm = await importWebLLM();
-    const createEngine = webllm.CreateWebWorkerMLCEngine;
+    const createEngine = webllm.CreateWebGPUEngine ?? webllm.CreateMLCEngine;
 
     if (!createEngine) {
-      throw new Error("No WebLLM worker engine factory available.");
+      throw new Error("No WebLLM engine factory available.");
     }
 
-    const engine = await createEngine(this.getWorker(), this.modelName, {
+    const engine = await createEngine(this.modelName, {
       initProgressCallback: (progress) => {
-        console.info("CleanFlow browser AI model loading progress", {
-          modelName: this.modelName,
-          progress: progress.progress,
-          text: progress.text,
-        });
-
         onProgress?.({
           stage: "loading",
           message: progress.text ?? "Loading browser AI model.",
           progress: progress.progress,
         });
       },
-    });
-
-    console.info("CleanFlow browser AI model loaded", {
-      modelName: this.modelName,
-      time: new Date().toISOString(),
     });
 
     return engine;
@@ -327,8 +288,6 @@ export class BrowserAIProvider implements AIProvider {
   async generateFindingsForRows({
     input,
     rows,
-    rowsAnalyzedStart,
-    rowsAnalyzedEnd,
     previousFindings = [],
     onProgress,
   }: {
@@ -349,32 +308,19 @@ export class BrowserAIProvider implements AIProvider {
 
     const prompt = createWebLLMPrompt({ input, rows, previousFindings });
 
-    console.info("[AI] prompt", prompt);
-
-    console.info("[AI] prompt size", {
-      rowsAnalyzedStart,
-      rowsAnalyzedEnd,
-      rows: rows.length,
-      characters: prompt.length,
-    });
-
-    const structuralSchema = {
+    const responseFormatSchema = {
       type: "object",
       properties: {
-        summary: {
-          type: "string",
-          maxLength: 120,
-        },
         findings: {
           type: "array",
-          maxItems: 2,
+          maxItems: AI_MAX_FINDINGS_PER_CHUNK,
           items: {
             type: "object",
             properties: {
-              title: { type: "string", maxLength: 60 },
-              description: { type: "string", maxLength: 160 },
-              reasoning: { type: "string", maxLength: 240 },
-              confidence: { type: "number" },
+              title: { type: "string" },
+              description: { type: "string" },
+              reasoning: { type: "string" },
+              confidence: { type: "number", decimalDigits: 2 },
               category: {
                 enum: [
                   "pattern",
@@ -395,80 +341,70 @@ export class BrowserAIProvider implements AIProvider {
           },
         },
       },
-      required: ["summary", "findings"],
+      required: ["findings"],
       additionalProperties: false,
     };
 
     const response = await engine.chat.completions.create({
       temperature: 0,
-      max_tokens: 120,
+      max_tokens: 4094,
+      response_format: {
+        type: "json_object",
+        schema: JSON.stringify(responseFormatSchema),
+      },
       messages: [
         {
           role: "system",
           content: [
-            "You are CleanFlow AI, a browser-based assistant for dataset review.",
+            "You are CleanFlow AI.",
             "",
-            "You are not a data validator.",
-            "Deterministic validation has already been completed and is the source of truth.",
-            "Do not repeat deterministicIssues as findings. They are already handled by the review queue.",
+            "Deterministic validation has already been completed.",
+            "Do NOT report missing values.",
+            "Do NOT report invalid emails.",
+            "Do NOT report invalid dates.",
+            "Do NOT report duplicates.",
+            "Do NOT repeat review queue items.",
             "",
-            "Your job is only to provide high-level observations based on:",
-            "- deterministic issue summaries",
-            "- row validation states",
-            "- visible dataset patterns",
+            "Look only for higher-level patterns that span multiple rows.",
             "",
-            "You must not invent validation issues.",
-            "You must not report missing values, invalid emails, duplicates, country issues, or status issues at all.",
-            "Those are deterministic validation issues and must not appear in your findings.",
-            "You must not return affectedRows, targetField, evidence, severity, or suggestedAction.",
+            "Examples:",
+            "- inconsistent naming conventions",
+            "- inconsistent casing",
+            "- placeholder values used across many rows",
+            "- unusual category distributions",
+            "- unexpected combinations of fields",
+            "- rows that appear different from the majority",
             "",
-            "Return only useful supplemental observations.",
-            "",/* 
-            "If there is no useful higher-level observation, return exactly:",
-            JSON.stringify({
-              summary: "No additional AI findings.",
-              findings: [],
-            }), */
+            "Ignore single-row validation issues.",
+            "",
+            "Return at most 1 finding.",
+            "",
+            "If no useful pattern exists return:",
+            '{"summary":"No additional AI findings.","findings":[]}',
+            "",
+            "Return JSON only."
           ].join("\n"),
         },
         {
           role: "user",
-          content: prompt,
+          content: [
+            "Dataset JSON:",
+            prompt,
+          ].join("\n"),
         },
-      ],
-      response_format: {
-        type: "json_object",
-        schema: JSON.stringify(structuralSchema),
-      },
+      ]
     });
-
-    console.info("[AI] response", response);
 
     const finishReason = response.choices[0]?.finish_reason;
     const text = response.choices[0]?.message?.content?.trim();
-
-    console.info("[AI] response received", {
-      rowsAnalyzedStart,
-      rowsAnalyzedEnd,
-      finishReason,
-      hasText: Boolean(text),
-      characters: text?.length ?? 0,
-      preview: text?.slice(0, 500),
-    });
 
     if (finishReason === "length") {
       console.warn("[AI] response was truncated by token limit.");
     }
 
     if (!text || !isTrustedJsonObject(text)) {
-      console.info("[AI] untrusted response fallback", {
-        rowsAnalyzedStart,
-        rowsAnalyzedEnd,
-        hasText: Boolean(text),
-      });
-
       return {
-        summary: "No additional AI findings.",
+        summary: "No additional AI observations.",
         findings: [],
       };
     }
@@ -482,22 +418,15 @@ export class BrowserAIProvider implements AIProvider {
       source: "browser-ai",
     });
 
-    console.info("[AI] parsed response", {
-      rowsAnalyzedStart,
-      rowsAnalyzedEnd,
-      summary: parsed.summary,
-      findings: parsed.findings.length,
-    });
-
     onProgress?.({
       stage: "complete",
-      message: "Browser AI insights generated.",
+      message: "Browser AI observations generated.",
       progress: 1,
     });
 
     return {
-      summary: parsed.summary || "No additional AI findings.",
-      findings: parsed.findings.slice(0, 2),
+      summary: parsed.summary || "No additional AI observations.",
+      findings: parsed.findings.slice(0, AI_MAX_FINDINGS_PER_CHUNK),
     };
   }
 }

@@ -193,21 +193,11 @@ describe("AI dataset insights", () => {
 
     const payload = JSON.parse(prompt) as {
       columns: string[];
-      rowIds: number[];
-      deterministicIssues: unknown[][];
-      rowStates: unknown[][];
       rows: Array<Record<string, unknown>>;
-      profile?: unknown;
-      pendingSuggestions?: unknown;
     };
 
     expect(payload.columns).toEqual(["email", "country"]);
     expect(payload.columns).not.toContain("rowId");
-    expect(payload.rowIds).toEqual([1, 2]);
-    expect(payload.deterministicIssues).toEqual([
-      ["email", "flag_invalid", "Invalid email format", [2]],
-    ]);
-    expect(payload.rowStates).toEqual([[2, "invalid", "email"]]);
     expect(payload.rows).toEqual([
       { rowId: 1, email: "valid@example.com", country: "United States" },
       { rowId: 2, email: "bad-email", country: "Narnia" },
@@ -276,18 +266,18 @@ describe("AI dataset insights", () => {
     );
 
     expect(result.status).toBe("completed");
-    expect(result.rowsAnalyzed).toBe(51);
+    expect(result.rowsAnalyzed).toBe(30);
     expect(result.totalRows).toBe(51);
-    expect(result.analysisTargetRows).toBe(51);
+    expect(result.analysisTargetRows).toBe(30);
     expect(result.findings).toHaveLength(1);
-    expect(result.findings[0].affectedRows).toEqual([1, 51]);
-    expect(updates).toContain(50);
-    expect(updates).toContain(51);
+    expect(result.findings[0].affectedRows).toEqual([1, 6, 11, 16, 21, 26]);
+    expect(updates).toContain(5);
+    expect(updates).toContain(30);
     expect(result.summary).toContain("AI analysis complete");
     expect(result.summary).not.toBe("Analyzed 1 rows.");
   });
 
-  it("progressive analysis can reach all 5000 rows", async () => {
+  it("progressive analysis caps large datasets at the configured row limit", async () => {
     const result = await runProgressiveDatasetAIAnalysis(
       createLargeWorkflowState(5000),
       {
@@ -305,9 +295,9 @@ describe("AI dataset insights", () => {
     );
 
     expect(result.status).toBe("completed");
-    expect(result.rowsAnalyzed).toBe(5000);
+    expect(result.rowsAnalyzed).toBe(30);
     expect(result.totalRows).toBe(5000);
-    expect(result.analysisTargetRows).toBe(5000);
+    expect(result.analysisTargetRows).toBe(30);
   });
 
   it("continues after a row range fails once analysis has started", async () => {
@@ -322,7 +312,7 @@ describe("AI dataset insights", () => {
           modelName: "fake-model",
           getAvailability: async () => ({ status: "available" }),
           generateFindingsForRows: async ({ rowsAnalyzedStart }) => {
-            if (rowsAnalyzedStart === 51) {
+            if (rowsAnalyzedStart === 16) {
               throw new Error("prompt tokens exceeded context window");
             }
 
@@ -341,9 +331,9 @@ describe("AI dataset insights", () => {
     expect(result.status).toBe("completed");
     expect(result.error).toBeUndefined();
     expect(result.summary).not.toContain("prompt tokens");
-    expect(updates).toContain(50);
-    expect(updates).toContain(100);
-    expect(updates).toContain(101);
+    expect(updates).toContain(5);
+    expect(updates).toContain(15);
+    expect(updates).toContain(25);
   });
 
   it("returns fallback analysis when model loading times out", async () => {

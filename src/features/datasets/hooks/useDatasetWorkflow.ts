@@ -145,12 +145,6 @@ export function useDatasetWorkflow(routeDatasetId: string) {
         },
       });
 
-      console.info("[AI] dataset ready", {
-        datasetId,
-        fileName: file.name,
-        rows: parsedDataset.rows.length,
-        columns: parsedDataset.columns.length,
-      });
     } catch (error) {
       if (!isUploadActive(uploadRequestId)) return;
 

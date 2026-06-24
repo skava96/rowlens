@@ -6,16 +6,34 @@ function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function hasOverlap(left: number[], right: number[]) {
+function hasOverlap(left: number[] = [], right: number[] = []) {
   const rightSet = new Set(right);
   return left.some((item) => rightSet.has(item));
 }
 
-function isSimilarTitle(left: string, right: string) {
-  const leftWords = new Set(normalizeText(left).split(" ").filter(Boolean));
-  const rightWords = normalizeText(right).split(" ").filter(Boolean);
+function hasSimilarMeaning(left: string, right: string) {
+  const leftText = normalizeText(left);
+  const rightText = normalizeText(right);
 
-  return rightWords.some((word) => word.length > 3 && leftWords.has(word));
+  if (leftText.includes(rightText) || rightText.includes(leftText)) {
+    return true;
+  }
+
+  const deterministicGroups = [
+    ["email", "invalid email", "email format"],
+    ["missing", "blank", "required"],
+    ["duplicate", "duplicated"],
+    ["country", "normalization", "standardize"],
+    ["status", "account status", "enum"],
+    ["date", "signup date"],
+  ];
+
+  return deterministicGroups.some((group) => {
+    const leftMatches = group.some((word) => leftText.includes(word));
+    const rightMatches = group.some((word) => rightText.includes(word));
+
+    return leftMatches && rightMatches;
+  });
 }
 
 export function matchAIFindingsToSuggestions(
@@ -23,26 +41,24 @@ export function matchAIFindingsToSuggestions(
   suggestions: AISuggestion[]
 ): AIFinding[] {
   return findings.map((finding) => {
-    if (finding.kind === "observation") {
-      return {
-        ...finding,
-        status: finding.status ?? "new",
-        matchedSuggestionId: undefined,
-      };
-    }
-
     const matchedSuggestion = suggestions.find((suggestion) => {
-      if (finding.targetField && suggestion.targetField !== finding.targetField) {
-        return false;
-      }
+      const rowOverlap = hasOverlap(
+        finding.affectedRows,
+        suggestion.affectedRows
+      );
 
-      if (!hasOverlap(finding.affectedRows, suggestion.affectedRows)) {
-        return false;
-      }
+      if (!rowOverlap) return false;
 
-      return (
-        suggestion.action === finding.suggestedAction ||
-        isSimilarTitle(finding.title, suggestion.title)
+      const sameField =
+        finding.targetField && suggestion.targetField
+          ? finding.targetField === suggestion.targetField
+          : true;
+
+      if (!sameField) return false;
+
+      return hasSimilarMeaning(
+        `${finding.title} ${finding.description}`,
+        `${suggestion.title} ${suggestion.description}`
       );
     });
 
@@ -51,7 +67,7 @@ export function matchAIFindingsToSuggestions(
         ...finding,
         status:
           finding.status === "dismissed" ||
-            finding.status === "added_to_review_queue"
+          finding.status === "added_to_review_queue"
             ? finding.status
             : "new",
         matchedSuggestionId: undefined,

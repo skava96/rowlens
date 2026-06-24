@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runProgressiveDatasetAIAnalysis } from "@/features/ai/generateDatasetInsights";
@@ -40,7 +40,7 @@ describe("DatasetAIInsightsPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("starts a new analysis after remounting the same dataset", async () => {
+  it("starts a new analysis when requested after remounting the same dataset", async () => {
     const props = {
       state: createReadyState(),
       onAddFindingToReviewQueue: vi.fn(),
@@ -48,6 +48,8 @@ describe("DatasetAIInsightsPanel", () => {
     };
 
     const firstRender = render(<DatasetAIInsightsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Run local AI" }));
 
     await waitFor(() => {
       expect(runProgressiveDatasetAIAnalysis).toHaveBeenCalledTimes(1);
@@ -60,6 +62,8 @@ describe("DatasetAIInsightsPanel", () => {
     firstRender.unmount();
 
     render(<DatasetAIInsightsPanel {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Run local AI" }));
 
     await waitFor(() => {
       expect(runProgressiveDatasetAIAnalysis).toHaveBeenCalledTimes(2);

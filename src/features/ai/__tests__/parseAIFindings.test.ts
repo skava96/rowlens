@@ -73,7 +73,7 @@ describe("parseAIFindingsFromText", () => {
       targetField: "email",
       affectedRows: [2],
       suggestedAction: "flag_invalid",
-      suggestedValue: undefined,
+      suggestedValue: "x",
     });
   });
 
@@ -120,7 +120,9 @@ describe("parseAIFindingsFromText", () => {
       })}\n\`\`\`\nDone.`,
     });
 
-    expect(result.summary).toBe("Fenced summary.");
+    expect(result.summary).toBe(
+      "Browser AI found supplemental suspicious patterns or incorrect data."
+    );
     expect(result.findings[0].title).toBe("Fenced finding");
   });
 
@@ -199,6 +201,6 @@ describe("parseAIFindingsFromText", () => {
     });
 
     expect(result.findings).toEqual([]);
-    expect(result.summary).toContain("no trusted structured findings");
+    expect(result.summary).toContain("did not return trusted structured findings");
   });
 });

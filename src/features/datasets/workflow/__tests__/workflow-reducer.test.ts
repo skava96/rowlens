@@ -183,6 +183,7 @@ function createAIFinding(overrides: Partial<AIFinding> = {}): AIFinding {
     targetField: "full_name",
     affectedRows: [1],
     suggestedAction: "flag_invalid",
+    kind: "validation",
     source: "browser-ai",
     status: "new",
     ...overrides,

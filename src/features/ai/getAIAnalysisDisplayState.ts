@@ -17,9 +17,9 @@ export function getAIAnalysisDisplayState(state: AIAnalysisState) {
     showFallbackCard: isFallbackMode,
     findingsTitle: isFallbackMode
       ? "Deterministic Findings"
-      : "AI-Detected Findings",
+      : "AI Observations",
     emptyFindingsText: isFallbackMode
       ? "No deterministic fallback findings are available."
-      : "No separate AI findings are available yet.",
+      : "No additional AI observations were found yet.",
   };
 }
