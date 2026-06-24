@@ -1,3 +1,4 @@
+import { DataGridColumnFilter } from "@/types/data-grid-types";
 import { DatasetRow } from "@/types/dataset";
 
 export type DatasetStatusFilter =
@@ -13,18 +14,19 @@ export type SortConfig = {
 } | null;
 
 export type TablePreferences = {
-  version: 1;
+  version: 2;
   rowsPerPage: number;
   searchQuery: string;
   statusFilter: DatasetStatusFilter;
   sortConfig: SortConfig;
+  columnFilters: DataGridColumnFilter[];
 };
 
 export function getTablePreferencesKey(schemaKey: string) {
   return `cleanflow-table-preferences:${schemaKey}`;
 }
 
-const TABLE_PREFERENCES_VERSION = 1;
+const TABLE_PREFERENCES_VERSION = 2;
 
 const DEFAULT_TABLE_PREFERENCES: TablePreferences = {
   version: TABLE_PREFERENCES_VERSION,
@@ -32,6 +34,7 @@ const DEFAULT_TABLE_PREFERENCES: TablePreferences = {
   searchQuery: "",
   statusFilter: "all",
   sortConfig: null,
+  columnFilters: [],
 };
 
 const VALID_STATUS_FILTERS: DatasetStatusFilter[] = [
@@ -95,12 +98,17 @@ export function parseTablePreferences(value: unknown): TablePreferences | null {
     return null;
   }
 
+  if (!Array.isArray(value.columnFilters)) {
+    return null;
+  }
+
   return {
     version: TABLE_PREFERENCES_VERSION,
     rowsPerPage: value.rowsPerPage,
     searchQuery: value.searchQuery,
     statusFilter: value.statusFilter,
     sortConfig: value.sortConfig,
+    columnFilters: value.columnFilters,
   };
 }
 

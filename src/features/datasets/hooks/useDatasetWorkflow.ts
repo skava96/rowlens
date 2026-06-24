@@ -8,6 +8,7 @@ import { profileDataset } from "../utils/profileDataset";
 import { getInitialWorkflowState } from "../workflow/workflow-storage";
 import { localWorkflowRepository } from "../workflow/local-workflow-repository";
 import { workflowReducer } from "../workflow/workflow-reducer";
+import { AIFinding } from "@/features/ai/types";
 
 function createWorkflowMeta() {
   return {
@@ -143,6 +144,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
           ready: createWorkflowMeta(),
         },
       });
+
     } catch (error) {
       if (!isUploadActive(uploadRequestId)) return;
 
@@ -176,5 +178,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
       dispatch({ type: "TRANSFORMATION_UNDONE", transformationId: id, meta: createWorkflowMeta() }),
     bulkMarkRowsValid: (rowIds: number[]) =>
       dispatch({ type: "ROWS_BULK_MARKED_VALID", rowIds, meta: createWorkflowMeta() }),
+    addAIFindingToReviewQueue: (finding: AIFinding) =>
+      dispatch({ type: "AI_FINDING_ADDED_TO_REVIEW_QUEUE", finding, meta: createWorkflowMeta() }),
   };
 }

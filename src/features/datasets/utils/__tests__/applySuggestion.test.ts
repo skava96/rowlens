@@ -37,7 +37,7 @@ function createStandardizeCountrySuggestion(id: string): AISuggestion {
     confidence: 92,
     affectedRows: [1],
     targetField: "country",
-    suggestedValue: "USA",
+    suggestedValue: "United States",
     action: "standardize_value",
     status: "pending",
   };
@@ -50,7 +50,7 @@ describe("applySuggestionToRows", () => {
       suggestion: createStandardizeCountrySuggestion("suggestion-1"),
     });
 
-    expect(result.rows[0].values.country).toBe("USA");
+    expect(result.rows[0].values.country).toBe("United States");
     expect(result.rows[1].values.country).toBe("india");
 
     expect(result.changes).toEqual([
@@ -58,7 +58,7 @@ describe("applySuggestionToRows", () => {
         rowId: 1,
         field: "country",
         beforeValue: "usa",
-        afterValue: "USA",
+        afterValue: "United States",
       },
     ]);
   });
@@ -73,7 +73,7 @@ describe("applySuggestionToRows", () => {
     expect(result.rows[1].transformedFields).toBeUndefined();
   });
 
-  it("does not mark invalid values as valid when flag_invalid is reviewed", () => {
+  it("marks invalid rows as reviewed without changing their invalid value", () => {
     const suggestion: AISuggestion = {
       id: "suggestion-3",
       title: "Flag invalid email",
@@ -95,6 +95,8 @@ describe("applySuggestionToRows", () => {
     expect(result.rows[0].values.email).toBe("bad-email");
     expect(result.rows[0].validationState).toBe("invalid");
     expect(result.rows[0].validationField).toBe("email");
-    expect(result.rows[0].transformedFields).toContain("email");
+    expect(result.rows[0].reviewState).toBe("reviewed");
+    expect(result.rows[0].transformedFields).toBeUndefined();
+    expect(result.changes).toEqual([]);
   });
 });

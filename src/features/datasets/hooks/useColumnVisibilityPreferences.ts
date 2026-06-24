@@ -4,13 +4,51 @@ import { useEffect, useMemo, useState } from "react";
 
 import { DatasetColumn } from "@/types/dataset";
 
+const MAX_PINNED_COLUMNS = 2;
+
 const getColumnVisibilityKey = (schemaKey: string) =>
   `cleanflow-visible-columns:${schemaKey}`;
+
+const getPinnedColumnsKey = (schemaKey: string) =>
+  `cleanflow-pinned-columns:${schemaKey}`;
 
 type UseColumnVisibilityPreferencesArgs = {
   datasetId: string;
   columns: DatasetColumn[];
 };
+
+function readStoredStringArray(storageKey: string): string[] | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = localStorage.getItem(storageKey);
+    const parsed = stored ? JSON.parse(stored) : null;
+
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getDefaultPinnedColumnKeys(columns: DatasetColumn[]) {
+  const identityColumn = columns.find((column) => {
+    const key = column.key.toLowerCase();
+
+    return (
+      key.includes("id") ||
+      key.includes("name") ||
+      key.includes("email")
+    );
+  });
+
+  return identityColumn
+    ? [identityColumn.key]
+    : columns[0]
+      ? [columns[0].key]
+      : [];
+}
 
 export function useColumnVisibilityPreferences({
   datasetId,
@@ -22,44 +60,49 @@ export function useColumnVisibilityPreferences({
     return `${datasetId}:${columnSignature}`;
   }, [datasetId, columns]);
 
-  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[] | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      if (!schemaKey) return null;
-
-      try {
-        const stored = localStorage.getItem(getColumnVisibilityKey(schemaKey));
-        return stored ? JSON.parse(stored) : null;
-      } catch {
-        return null;
-      }
-    }
-  );
-
-  const [columnSearchQuery, setColumnSearchQuery] = useState("");
-
   const defaultVisibleColumnKeys = useMemo(
     () => columns.map((column) => column.key),
     [columns]
   );
 
-  const activeVisibleColumnKeys =
-    visibleColumnKeys ?? defaultVisibleColumnKeys;
+  const defaultPinnedColumnKeys = useMemo(
+    () => getDefaultPinnedColumnKeys(columns),
+    [columns]
+  );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!schemaKey || columns.length === 0) return;
+  const columnKeySet = useMemo(
+    () => new Set(columns.map((column) => column.key)),
+    [columns]
+  );
 
-    localStorage.setItem(
-      getColumnVisibilityKey(schemaKey),
-      JSON.stringify(activeVisibleColumnKeys)
-    );
-  }, [activeVisibleColumnKeys, schemaKey, columns.length]);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[] | null>(
+    () => readStoredStringArray(getColumnVisibilityKey(schemaKey))
+  );
+
+  const [pinnedColumnKeys, setPinnedColumnKeys] = useState<string[] | null>(
+    () => readStoredStringArray(getPinnedColumnsKey(schemaKey))
+  );
+
+  const [columnSearchQuery, setColumnSearchQuery] = useState("");
+
+  const activeVisibleColumnKeys = useMemo(() => {
+    const currentKeys = visibleColumnKeys ?? defaultVisibleColumnKeys;
+
+    return currentKeys.filter((key) => columnKeySet.has(key));
+  }, [visibleColumnKeys, defaultVisibleColumnKeys, columnKeySet]);
 
   const visibleColumnKeySet = useMemo(
     () => new Set(activeVisibleColumnKeys),
     [activeVisibleColumnKeys]
   );
+
+  const activePinnedColumnKeys = useMemo(() => {
+    const currentPinnedKeys = pinnedColumnKeys ?? defaultPinnedColumnKeys;
+
+    return currentPinnedKeys
+      .filter((key) => visibleColumnKeySet.has(key))
+      .slice(0, MAX_PINNED_COLUMNS);
+  }, [pinnedColumnKeys, defaultPinnedColumnKeys, visibleColumnKeySet]);
 
   const filteredVisibilityColumns = useMemo(() => {
     const query = columnSearchQuery.trim().toLowerCase();
@@ -73,20 +116,48 @@ export function useColumnVisibilityPreferences({
     );
   }, [columns, columnSearchQuery]);
 
-  const allColumnsVisible =
-    columns.length > 0 &&
-    columns.every((column) => visibleColumnKeySet.has(column.key));
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!schemaKey || columns.length === 0) return;
+
+    localStorage.setItem(
+      getColumnVisibilityKey(schemaKey),
+      JSON.stringify(activeVisibleColumnKeys)
+    );
+  }, [activeVisibleColumnKeys, schemaKey, columns.length]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!schemaKey || columns.length === 0) return;
+
+    localStorage.setItem(
+      getPinnedColumnsKey(schemaKey),
+      JSON.stringify(activePinnedColumnKeys)
+    );
+  }, [activePinnedColumnKeys, schemaKey, columns.length]);
 
   const toggleColumnVisibility = (columnKey: string) => {
+    if (!columnKeySet.has(columnKey)) return;
+
+    const wasVisible = visibleColumnKeySet.has(columnKey);
+
+    if (wasVisible && activeVisibleColumnKeys.length <= 1) return;
+
     setVisibleColumnKeys((current) => {
       const currentKeys = current ?? defaultVisibleColumnKeys;
 
-      if (currentKeys.includes(columnKey)) {
-        return currentKeys.filter((key) => key !== columnKey);
-      }
-
-      return [...currentKeys, columnKey];
+      return wasVisible
+        ? currentKeys.filter((key) => key !== columnKey)
+        : [...currentKeys, columnKey];
     });
+
+    if (wasVisible) {
+      setPinnedColumnKeys((current) => {
+        const currentKeys = current ?? defaultPinnedColumnKeys;
+
+        return currentKeys.filter((key) => key !== columnKey);
+      });
+    }
   };
 
   const showAllColumns = () => {
@@ -94,7 +165,32 @@ export function useColumnVisibilityPreferences({
   };
 
   const hideAllColumns = () => {
-    setVisibleColumnKeys([]);
+    const fallbackColumnKey = defaultVisibleColumnKeys[0];
+
+    setVisibleColumnKeys(fallbackColumnKey ? [fallbackColumnKey] : []);
+    setPinnedColumnKeys([]);
+  };
+
+  const toggleColumnPin = (columnKey: string) => {
+    if (!visibleColumnKeySet.has(columnKey)) return;
+
+    setPinnedColumnKeys((current) => {
+      const currentKeys = current ?? defaultPinnedColumnKeys;
+
+      const sanitizedKeys = currentKeys
+        .filter((key) => visibleColumnKeySet.has(key))
+        .slice(0, MAX_PINNED_COLUMNS);
+
+      if (sanitizedKeys.includes(columnKey)) {
+        return sanitizedKeys.filter((key) => key !== columnKey);
+      }
+
+      if (sanitizedKeys.length >= MAX_PINNED_COLUMNS) {
+        return sanitizedKeys;
+      }
+
+      return [...sanitizedKeys, columnKey];
+    });
   };
 
   return {
@@ -103,9 +199,11 @@ export function useColumnVisibilityPreferences({
     activeVisibleColumnKeys,
     visibleColumnKeySet,
     filteredVisibilityColumns,
-    allColumnsVisible,
     activeVisibleColumnCount: activeVisibleColumnKeys.length,
+    activePinnedColumnKeys,
+    maxPinnedColumns: MAX_PINNED_COLUMNS,
 
+    toggleColumnPin,
     setColumnSearchQuery,
     toggleColumnVisibility,
     showAllColumns,

@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   ShieldCheck,
@@ -9,7 +10,10 @@ import {
 import { toast } from "sonner";
 
 import { useDatasetWorkflow } from "@/features/datasets/hooks/useDatasetWorkflow";
-import { downloadCsv, exportDatasetToCsv } from "@/features/datasets/utils/exportDataset";
+import {
+  downloadCsv,
+  exportDatasetToCsv,
+} from "@/features/datasets/utils/exportDataset";
 
 import { UploadCard } from "@/components/upload/upload-card";
 import { TransformationHistory } from "@/components/dataset/transformation-history";
@@ -20,42 +24,61 @@ import DatasetRecordsSection from "@/features/datasets/components/dataset-record
 import { DatasetWorkspace } from "@/features/datasets/config/dataset-registry";
 import { useColumnVisibilityPreferences } from "../hooks/useColumnVisibilityPreferences";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import DatasetOverview from "@/components/dataset/dataset-overview";
+import { DatasetAIInsightsPanel } from "../components/dataset-ai-insights-panel";
+import { AIFinding } from "@/features/ai/types";
 
-function EmptyWorkspacePreview() {
+const DEMO_DATASET_FILE_NAME = "customer-cleanup-sample.csv";
+const DEMO_DATASET_PATH = "/demo/customer-cleanup-sample.csv";
+
+async function fetchDemoDatasetFile() {
+  const response = await fetch(DEMO_DATASET_PATH);
+
+  if (!response.ok) {
+    throw new Error("Demo dataset could not be loaded.");
+  }
+
+  const blob = await response.blob();
+
+  return new File([blob], DEMO_DATASET_FILE_NAME, {
+    type: "text/csv",
+  });
+}
+
+function EmptyWorkspacePreview({
+  onLoadDemoDataset,
+  isLoadingDemo,
+}: {
+  onLoadDemoDataset: () => void;
+  isLoadingDemo: boolean;
+}) {
   const capabilities = [
     {
       title: "Data validation",
       description:
         "Detect missing values, invalid formats, and inconsistent records.",
       icon: TableProperties,
-      iconClass:
-        "border-amber-100 bg-amber-50 text-amber-700",
+      iconClass: "border-amber-100 bg-amber-50 text-amber-700",
     },
     {
       title: "Review workflow",
       description:
         "Approve or reject generated cleanup suggestions before export.",
       icon: Sparkles,
-      iconClass:
-        "border-sky-100 bg-sky-50 text-sky-700",
+      iconClass: "border-sky-100 bg-sky-50 text-sky-700",
     },
     {
       title: "Audit history",
       description:
         "Track manual edits, suggestion decisions, and undo operations.",
       icon: ShieldCheck,
-      iconClass:
-        "border-violet-100 bg-violet-50 text-violet-700",
+      iconClass: "border-violet-100 bg-violet-50 text-violet-700",
     },
     {
       title: "Clean export",
-      description:
-        "Download reviewed dataset outputs as CSV.",
+      description: "Download reviewed dataset outputs as CSV.",
       icon: CheckCircle2,
-      iconClass:
-        "border-emerald-100 bg-emerald-50 text-emerald-700",
+      iconClass: "border-emerald-100 bg-emerald-50 text-emerald-700",
     },
   ];
 
@@ -64,19 +87,28 @@ function EmptyWorkspacePreview() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
-            Waiting for dataset
+            Start a review
           </p>
 
           <h2 className="mt-2 text-lg font-semibold text-foreground">
-            No dataset uploaded
+            Explore CleanFlow with sample customer data
           </h2>
 
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Upload a CSV or XLSX file to begin validation, review generated
-            cleanup suggestions, track audit history, and export cleaned
-            results.
+            Load a prepared dataset to see the full workflow: profile the file,
+            review quality suggestions, inspect affected rows, track history,
+            and export a cleaned CSV.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={onLoadDemoDataset}
+          disabled={isLoadingDemo}
+          className="inline-flex shrink-0 items-center justify-center rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isLoadingDemo ? "Loading demo..." : "Load sample workspace"}
+        </button>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -116,15 +148,77 @@ type DatasetWorkspaceContainerProps = {
   workspace: DatasetWorkspace;
 };
 
-type WorkspaceTab = "overview" | "review" | "records" | "history" | "export";
+type WorkspaceTab = "overview" | "insights" | "review" | "records" | "history" | "export";
+
+type RecordsView = "all" | "affected";
+
+type RecordsViewIntent = {
+  mode: RecordsView;
+  key: string;
+  suggestionId?: string;
+};
 
 export function DatasetWorkspaceContainer({
   workspace,
 }: DatasetWorkspaceContainerProps) {
-  const { datasetId, workspaceName } = workspace;
+  const { datasetId } = workspace;
   const workflow = useDatasetWorkflow(datasetId);
 
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const tabFromUrl = searchParams.get("tab") as WorkspaceTab | null;
+
+  const activeTab: WorkspaceTab =
+    tabFromUrl &&
+      ["overview", "insights", "review", "records", "history", "export"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "overview";
+
+  const recordsViewFromUrl: RecordsView =
+    searchParams.get("recordsView") === "affected" ? "affected" : "all";
+
+  const suggestionIdFromUrl = searchParams.get("suggestionId");
+
+  const setActiveTab = (
+    tab: WorkspaceTab,
+    options?: {
+      recordsView?: RecordsView;
+      suggestionId?: string;
+    }
+  ) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+
+    if (tab === "records") {
+      params.set("recordsView", options?.recordsView ?? "all");
+
+      if (options?.suggestionId) {
+        params.set("suggestionId", options.suggestionId);
+      } else {
+        params.delete("suggestionId");
+      }
+    } else {
+      params.delete("recordsView");
+      params.delete("suggestionId");
+    }
+
+    const query = params.toString();
+
+    router.push(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const recordsViewIntent: RecordsViewIntent = {
+    mode: recordsViewFromUrl,
+    suggestionId: suggestionIdFromUrl ?? undefined,
+    key: `${activeTab}-${recordsViewFromUrl}-${suggestionIdFromUrl ?? "none"}`,
+  };
 
   const columnVisibility = useColumnVisibilityPreferences({
     datasetId,
@@ -136,8 +230,16 @@ export function DatasetWorkspaceContainer({
     workflow.state.status === "reviewing" ||
     workflow.state.status === "completed";
 
+  const isLoadingDemo =
+    workflow.state.status === "uploading" || workflow.state.status === "processing";
+
+  const activeSuggestionId =
+    activeTab === "records" && suggestionIdFromUrl
+      ? suggestionIdFromUrl
+      : workflow.state.selectedSuggestionId;
+
   const selectedSuggestion = workflow.state.suggestions.find(
-    (suggestion) => suggestion.id === workflow.state.selectedSuggestionId
+    (suggestion) => suggestion.id === activeSuggestionId
   );
 
   const highlightedRowIds = selectedSuggestion?.affectedRows ?? [];
@@ -154,6 +256,10 @@ export function DatasetWorkspaceContainer({
       {
         id: "overview",
         label: "Overview",
+      },
+      {
+        id: "insights",
+        label: "AI Insights",
       },
       {
         id: "review",
@@ -175,6 +281,27 @@ export function DatasetWorkspaceContainer({
         label: "Export",
       },
     ];
+
+  const handleLoadDemoDataset = async () => {
+    if (isLoadingDemo) return;
+
+    try {
+      const file = await fetchDemoDatasetFile();
+
+      workflow.startUpload(file);
+
+      toast.success("Demo dataset loading", {
+        description: "Sample customer records are being prepared for review.",
+      });
+    } catch (error) {
+      toast.error("Demo dataset unavailable", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please try uploading your own CSV file.",
+      });
+    }
+  };
 
   const handleExportCsv = () => {
     const csvContent = exportDatasetToCsv(
@@ -198,11 +325,6 @@ export function DatasetWorkspaceContainer({
     downloadCsv(csvContent, "cleanflow-selected-rows.csv");
   };
 
-  const handleReviewSuggestion = (id: string) => {
-    workflow.reviewSuggestion(id);
-    setActiveTab("records");
-  };
-
   const validRowCount = workflow.state.rows.filter(
     (row) => row.validationState === "valid"
   ).length;
@@ -211,6 +333,57 @@ export function DatasetWorkspaceContainer({
     (row) => row.validationState === "invalid"
   ).length;
 
+  const handleReviewSuggestion = (id: string) => {
+    workflow.reviewSuggestion(id);
+
+    setActiveTab("records", {
+      recordsView: "affected",
+      suggestionId: id,
+    });
+  };
+
+  const handleApplySuggestion = (id: string) => {
+    workflow.approveSuggestion(id);
+
+    setActiveTab("records", {
+      recordsView: "affected",
+      suggestionId: id,
+    });
+  };
+
+  const handleWorkspaceTabChange = (tab: WorkspaceTab) => {
+    if (tab === "records") {
+      workflow.clearSelectedSuggestion();
+    }
+
+    setActiveTab(tab, tab === "records" ? { recordsView: "all" } : undefined);
+  };
+
+  const onRecordsViewChange = (view: RecordsView) => {
+    setActiveTab("records", {
+      recordsView: view,
+      suggestionId:
+        view === "affected" ? recordsViewIntent.suggestionId : undefined,
+    });
+  };
+
+  const handleAddAIFindingToReviewQueue = (finding: AIFinding) => {
+    workflow.addAIFindingToReviewQueue(finding);
+
+    toast.success("AI finding added to Review Queue", {
+      description: "Review Queue now owns the workflow for this finding.",
+    });
+  };
+
+  const handleViewSuggestionRows = (suggestionId: string) => {
+    workflow.reviewSuggestion(suggestionId);
+
+    setActiveTab("records", {
+      recordsView: "affected",
+      suggestionId,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <UploadCard
@@ -218,9 +391,15 @@ export function DatasetWorkspaceContainer({
         status={workflow.state.status}
         fileName={workflow.state.fileName}
         error={workflow.state.error}
+        variant={isReady ? "compact" : "full"}
       />
 
-      {workflow.state.status === "idle" && <EmptyWorkspacePreview />}
+      {workflow.state.status === "idle" && (
+        <EmptyWorkspacePreview
+          onLoadDemoDataset={handleLoadDemoDataset}
+          isLoadingDemo={isLoadingDemo}
+        />
+      )}
 
       {workflow.state.status === "uploading" && (
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -249,7 +428,7 @@ export function DatasetWorkspaceContainer({
       {workflow.state.status === "processing" && (
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="text-sm font-medium">
-            Processing dataset and generating AI suggestions...
+            Processing dataset and preparing quality suggestions...
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Validating rows, detecting issues, and preparing review actions.
@@ -275,7 +454,7 @@ export function DatasetWorkspaceContainer({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleWorkspaceTabChange(tab.id)}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                   activeTab === tab.id
@@ -294,45 +473,71 @@ export function DatasetWorkspaceContainer({
           </div>
 
           {activeTab === "overview" && (
-            <DatasetOverview data={workflow.state} />
+            <div className="space-y-4">
+              <DatasetOverview data={workflow.state} />
+            </div>
           )}
+
+          <div
+            className={cn(
+              "space-y-4",
+              activeTab === "insights" ? "block" : "hidden"
+            )}
+          >
+            <DatasetAIInsightsPanel
+              state={workflow.state}
+              onAddFindingToReviewQueue={handleAddAIFindingToReviewQueue}
+              onViewSuggestionRows={handleViewSuggestionRows}
+            />
+          </div>
 
           {activeTab === "review" && (
             <DatasetReviewSection
               suggestions={workflow.state.suggestions}
               hasDataset={isReady}
               onReviewSuggestion={handleReviewSuggestion}
-              onApproveSuggestion={workflow.approveSuggestion}
+              onApproveSuggestion={handleApplySuggestion}
               onRejectSuggestion={workflow.rejectSuggestion}
-              onClearReview={workflow.clearSelectedSuggestion}
             />
           )}
 
           {activeTab === "records" && (
-            <div className="space-y-4">
-              <DatasetRecordsSection
-                columns={workflow.state.columns}
-                rows={workflow.state.rows}
-                visibleColumnKeys={columnVisibility.activeVisibleColumnKeys}
-                columnSearchQuery={columnVisibility.columnSearchQuery}
-                highlightedRowIds={highlightedRowIds}
-                allColumnsVisible={columnVisibility.allColumnsVisible}
-                activeVisibleColumnCount={columnVisibility.activeVisibleColumnCount}
-                filteredVisibilityColumns={columnVisibility.filteredVisibilityColumns}
-                visibleColumnKeySet={columnVisibility.visibleColumnKeySet}
-                schemaKey={columnVisibility.schemaKey}
-                workspaceName={workspaceName}
-                onColumnSearchChange={columnVisibility.setColumnSearchQuery}
-                onToggleColumnVisibility={columnVisibility.toggleColumnVisibility}
-                onShowAllColumns={columnVisibility.showAllColumns}
-                onHideAllColumns={columnVisibility.hideAllColumns}
-                onUpdateCell={workflow.updateCellValue}
-                onExportRows={handleExportSelectedRows}
-                onBulkMarkValid={workflow.bulkMarkRowsValid}
-              />
-
-            </div>
+            <DatasetRecordsSection
+              key={columnVisibility.schemaKey}
+              columns={workflow.state.columns}
+              rows={workflow.state.rows}
+              columnsPanel={{
+                columnSearchQuery: columnVisibility.columnSearchQuery,
+                filteredVisibilityColumns:
+                  columnVisibility.filteredVisibilityColumns,
+                visibleColumnKeySet: columnVisibility.visibleColumnKeySet,
+                activePinnedColumnKeys: columnVisibility.activePinnedColumnKeys,
+                maxPinnedColumns: columnVisibility.maxPinnedColumns,
+                onColumnSearchChange: columnVisibility.setColumnSearchQuery,
+                onToggleColumnVisibility:
+                  columnVisibility.toggleColumnVisibility,
+                onToggleColumnPin: columnVisibility.toggleColumnPin,
+                onShowAllColumns: columnVisibility.showAllColumns,
+                onHideAllColumns: columnVisibility.hideAllColumns,
+              }}
+              visibleColumnKeys={columnVisibility.activeVisibleColumnKeys}
+              highlightedRowIds={highlightedRowIds}
+              activeVisibleColumnCount={
+                columnVisibility.activeVisibleColumnCount
+              }
+              schemaKey={columnVisibility.schemaKey}
+              recordsViewIntent={recordsViewIntent}
+              pinnedColumnKeys={columnVisibility.activePinnedColumnKeys}
+              activeSuggestionTitle={selectedSuggestion?.title}
+              activeSuggestionStatus={selectedSuggestion?.status}
+              activeSuggestionResolvedRowIds={selectedSuggestion?.resolvedRows}
+              onUpdateCell={workflow.updateCellValue}
+              onExportRows={handleExportSelectedRows}
+              onBulkMarkValid={workflow.bulkMarkRowsValid}
+              onRecordsViewChange={onRecordsViewChange}
+            />
           )}
+
           {activeTab === "history" && (
             <TransformationHistory
               transformations={workflow.state.transformations}
@@ -340,6 +545,7 @@ export function DatasetWorkspaceContainer({
               onUndoTransformation={workflow.undoTransformation}
             />
           )}
+
           {activeTab === "export" && (
             <DatasetExportSection
               rowCount={workflow.state.rows.length}
