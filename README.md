@@ -1,6 +1,6 @@
 # CleanFlow AI
 
-> Browser-first dataset review workspace built with Next.js, React, TypeScript, Web Workers, and local AI inference.
+> Browser-first dataset review workspace built with Next.js, React, TypeScript, and local AI inference using WebLLM.
 
 CleanFlow AI is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
 
@@ -17,7 +17,6 @@ CleanFlow AI was built to showcase frontend engineering skills commonly required
 - Micro-interaction and workflow design
 - Browser performance optimization
 - State management at scale
-- Web Worker integration
 - AI-assisted user experiences
 - Auditability and traceability
 - Maintainable feature-oriented architecture
@@ -31,10 +30,71 @@ Many of these patterns are commonly found in internal platforms, operational sys
 - Built a browser-first dataset review workspace using Next.js, React, and TypeScript
 - Dynamic schema generation from CSV and XLSX uploads
 - Reducer-driven workflow state with audit history and undo support
-- Browser Worker-based file parsing and AI inference
+- Browser-based dataset parsing and local AI inference
 - Local AI insights powered by WebLLM and WebGPU
 - Route-scoped workspaces with isolated persistence
 - Architecture organized around adapters, repositories, and feature boundaries
+
+---
+
+# Screenshots
+
+## Workspace Overview
+
+The primary dataset review workspace showing dataset profiling, validation metrics,
+review readiness, and workflow status.
+
+![Workspace Overview](./public/screenshots/cleanflow-workspace-overview.png)
+
+---
+
+## Dataset Upload
+
+Upload CSV or XLSX files or load a sample workspace to explore the review workflow.
+
+![Dataset Upload](./public/screenshots/01-dataset-entry.png)
+
+---
+
+## Review Queue
+
+Review detected data quality issues, severity levels, confidence scores, and
+recommended actions before approving changes.
+
+![Review Queue](./public/screenshots/02-review-queue.png)
+
+---
+
+## Records Investigation
+
+Navigate directly to affected rows and investigate validation issues in context.
+
+![Records Investigation](./public/screenshots/03-records-investigation.png)
+
+---
+
+## Audit Trail
+
+Track review decisions, applied fixes, ignored suggestions, timestamps, and
+workflow history.
+
+![Audit Trail](./public/screenshots/04-audit-trail.png)
+
+---
+
+## Live Demo
+
+**Deployed Application**
+
+[Live Demo](https://cleanflow-workspace.vercel.app)
+
+Use the sample workspace to explore:
+
+- Dataset profiling
+- Review queue workflows
+- Record investigation
+- Audit history
+- Local AI insights
 
 ---
 
@@ -68,7 +128,7 @@ This project was intentionally designed to demonstrate frontend engineering chal
 * Route-scoped workspaces
 * AI-assisted user experiences
 * Audit and change tracking
-* Worker-based performance boundaries
+* Browser performance boundaries
 * Replaceable infrastructure adapters
 
 The project emphasizes maintainability, scalability, and explicit state management rather than backend infrastructure.
@@ -81,7 +141,7 @@ The application was designed around a few core principles:
 
 - Explicit state transitions over implicit component mutations
 - Clear separation between workflow, table, persistence, and AI concerns
-- Browser performance through worker isolation
+- Browser performance through constrained local processing
 - Deterministic validation as the source of truth
 - Replaceable infrastructure boundaries through adapters and repositories
 - Local-first development without backend dependencies
@@ -148,23 +208,6 @@ The application was designed around a few core principles:
 * Deterministic fallback mode
 * No external AI API required
 
----
-
-# Screenshots
-
-Add screenshots before publishing:
-
-| View                   | Screenshot                                       |
-| ---------------------- | ------------------------------------------------ |
-| Workspace Overview     | `/public/screenshots/workspace-overview.png`     |
-| Records Table          | `/public/screenshots/records-table.png`          |
-| Review Queue           | `/public/screenshots/review-queue.png`           |
-| AI Insights            | `/public/screenshots/ai-insights.png`            |
-| Transformation History | `/public/screenshots/transformation-history.png` |
-| Audit Trail            | `/public/screenshots/audit-trail.png`            |
-
----
-
 # Technology Stack
 
 ### Framework
@@ -184,7 +227,7 @@ Add screenshots before publishing:
 
 * XLSX
 * React Dropzone
-* Browser Web Workers
+* Browser-based dataset processing
 
 ### Browser AI
 
@@ -246,7 +289,7 @@ Local Storage Repository
 Browser AI
       |
       v
-WebLLM Worker
+WebLLM Engine
       |
       v
 AI Findings
@@ -295,7 +338,7 @@ Table state is separated into dedicated hooks to avoid coupling workflow logic w
 Upload File
       |
       v
-Worker Parsing
+Dataset Parsing
       |
       v
 Validation
@@ -364,13 +407,15 @@ No external AI API is configured in this repository.
 
 # Performance Considerations
 
-### Worker-Based Parsing
+### Browser-Based Processing
 
-CSV and XLSX parsing execute in browser workers to avoid blocking the UI thread.
+CSV and XLSX parsing execute entirely in the browser with upload constraints
+designed to keep processing responsive for portfolio-scale datasets.
 
-### Browser AI Isolation
+### Local AI Execution
 
-WebLLM inference runs inside a dedicated worker to reduce UI contention during model execution.
+WebLLM inference executes locally using WebGPU acceleration when available.
+Dataset sampling and analysis limits prevent excessive browser resource usage.
 
 ### Local Query Adapter
 
@@ -420,9 +465,9 @@ Workflow state, table interactions, and user preferences are managed independent
 
 Dataset identity is derived from route parameters (`/datasets/[datasetId]`), allowing each workspace to maintain independent state and browser persistence. This makes ownership boundaries explicit, with the tradeoff that the current dataset registry is static rather than server-driven.
 
-### Browser Worker Parsing
+### Browser-Based Dataset Processing
 
-CSV and XLSX parsing execute inside a Web Worker to keep expensive workbook processing off the main thread. The application intentionally limits uploads to 5 MB and 5,000 rows, which is appropriate for a browser-first prototype but not for large-scale ingestion workloads.
+Dataset parsing executes entirely in the browser. Uploads are intentionally constrained to 5 MB and 5,000 rows to maintain responsiveness and predictable performance for a browser-first workflow.
 
 ### Deterministic Validation as the Source of Truth
 
@@ -430,7 +475,7 @@ Validation logic for missing values and invalid email/date-like fields is determ
 
 ### Browser AI as Supplemental Guidance
 
-WebLLM runs a local WebGPU model in a dedicated worker to generate higher-level observations. Deterministic validation remains authoritative, and AI findings must be explicitly added to the Review Queue. This prevents probabilistic outputs from becoming workflow truth while introducing dependency on device capability and model-loading constraints.
+WebLLM runs a local WebGPU model directly in the browser to generate higher-level observations. Deterministic validation remains authoritative, and AI findings must be explicitly added to the Review Queue.
 
 ### Graceful AI Fallback
 
@@ -438,7 +483,7 @@ When WebGPU is unavailable or model execution fails, the application falls back 
 
 ### Repository and Adapter Boundaries
 
-Parsing, persistence, and query operations are expressed through adapters and repository abstractions. Current implementations use browser workers, localStorage, and in-memory queries. The additional abstraction introduces some complexity today but creates clear replacement seams for server-backed implementations later.
+Parsing, persistence, and query operations are expressed through adapters and repository abstractions. Current implementations use browser-based processing, localStorage, and in-memory queries. The additional abstraction introduces some complexity today but creates clear replacement seams for server-backed implementations later.
 
 ### Local Draft Persistence
 

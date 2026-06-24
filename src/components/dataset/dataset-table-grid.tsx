@@ -512,7 +512,6 @@ export function DatasetTableGrid({
                       key={row.id}
                       tabIndex={0}
                       aria-selected={isActiveRow}
-                      onClick={() => onSelectRow(row)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") onSelectRow(row);
 
