@@ -13,8 +13,8 @@ export default function DatasetsLayout({
                 Customer Cleanup Workspace
               </h1>
 
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Review uploaded records, approve data-quality suggestions, audit
+              <p className="mt-1 max-w-4xl text-sm text-muted-foreground">
+                Review uploaded records, generate browser-based AI observations, approve data-quality suggestions, audit
                 changes, and export cleaned CSV outputs.
               </p>
             </div>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CleanFlow AI",
-  description: "AI workspace for dataset upload, analysis, and tooling.",
+  description: "AI-assisted dataset review platform built with Next.js, React, TypeScript, and WebLLM.",
 };
 
 export default function RootLayout({
