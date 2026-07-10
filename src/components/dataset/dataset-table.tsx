@@ -22,6 +22,7 @@ interface DatasetTableProps {
   rows: DatasetRow[];
   visibleColumnKeys?: string[];
   highlightedRowIds?: number[];
+  highlightedField?: string;
   pinnedColumnKeys?: string[];
   activeVisibleColumnCount?: number;
   recordsViewSelector?: ReactNode;
@@ -37,6 +38,7 @@ export function DatasetTable({
   rows,
   visibleColumnKeys,
   highlightedRowIds = [],
+  highlightedField,
   pinnedColumnKeys = [],
   activeVisibleColumnCount,
   recordsViewSelector,
@@ -131,6 +133,7 @@ export function DatasetTable({
           rows={table.paginatedRows}
           visibleColumns={table.visibleColumns}
           highlightedRowIdSet={table.highlightedRowIdSet}
+          highlightedField={highlightedField}
           selectedRowIdSet={table.selectedRowIdSet}
           selectedRow={table.selectedRow}
           selectedRowIds={table.selectedRowIds}

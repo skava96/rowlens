@@ -1,31 +1,31 @@
-customer_id,full_name,email,country,signup_date,subscription_plan,monthly_revenue,account_status
-CUST-1001,User 1,user1@company.com,Canada,2024-01-12,Pro,79,Active
-CUST-1002,User 2,user2@company.com,Germany,2024-02-03,Starter,29,Active
-CUST-1003,User 3,user3@company.com,Canada,2024-03-18,Enterprise,199,Active
-CUST-1004,User 4,invalid-email-format,Germany,2024-04-20,Pro,79,Active
-CUST-1005,User 5,invalid-email-format,India,2024-05-08,Starter,29,Pending
-CUST-1006,User 6,user6@company.com,Canada,2024-06-11,Enterprise,199,Active
-CUST-1007,,user7@company.com,India,2024-07-14,Pro,79,Active
-CUST-1008,User 8,user8@company.com,Australia,2024-08-22,Starter,29,Inactive
-CUST-1009,User 9,user9@company.com,India,2024-09-09,Pro,79,Active
-CUST-1010,User 10,user10@company.com,United States,2024-10-01,Enterprise,199,Active
-CUST-1011,User 11,user11@company.com,Canada,,Starter,29,Pending
-CUST-1012,User 12,user12@company.com,U.S.A.,2024-11-15,Pro,79,active
-CUST-1013,User 13,user13@company.com,USA,2024-11-20,Pro,79,Active
-CUST-1014,User 14,user14@company.com,United States,2024-12-02,Enterprise,199,ACTIVE
-CUST-1015,User 15,missingatsign.com,Germany,2024-12-10,Starter,29,Pending
-CUST-1016,User 16,user16@company.com,India,2025-01-03,Pro,79,Active
-CUST-1017,User 17,user17@company.com,Canada,2025-01-12,Enterprise,199,Inactive
-CUST-1018,User 18,user18@company.com,Australia,2025-01-22,Starter,,Active
-CUST-1019,,user19@company.com,Canada,2025-02-04,Pro,79,Pending
-CUST-1020,User 20,user20@company.com,Germany,2025-02-11,Enterprise,199,Active
-CUST-1021,User 21,user21@company.com,United States,2025-02-19,Starter,29,Inactive
-CUST-1022,User 22,user22@company.com,India,,Pro,79,Active
-CUST-1023,User 23,user23@company.com,USA,2025-03-01,Enterprise,199,Active
-CUST-1024,User 24,user24@company.com,U.S.,2025-03-08,Starter,29,Pending
-CUST-1025,User 25,user25@company.com,Germany,2025-03-18,Pro,79,Active
-CUST-1026,User 26,user26@company.com,Canada,2025-03-25,Enterprise,199,Active
-CUST-1027,User 27,user27@company.com,India,2025-04-02,Starter,29,Inactive
-CUST-1028,User 28,user28@company.com,Australia,2025-04-14,Pro,79,Active
-CUST-1029,User 29,user29@company.com,United States,2025-04-21,Enterprise,199,Active
-CUST-1030,User 30,user30@company.com,Canada,2025-05-01,Starter,29,Pending
+customer_id,full_name,email,phone,department,title,country,status,manager,salary
+C1001,John Smith,john.smith@acme.com,9876543210,Engineering,Software Engineer,United States,Active,Sarah Lee,95000
+C1002,Alice Johnson,alice.johnson@acme.com,9876543211,Engineering,Software Engineer,United States,Active,Sarah Lee,96000
+C1003,Michael Brown,michael.brown@acme.com,9876543212,engineering,Software Engineer,USA,Active,Sarah Lee,94000
+C1004,Emma Davis,emma.davis@acme.com,9876543213,ENGINEERING,S/W Engineer,USA,Active,Sarah Lee,95500
+C1005,William Wilson,,9876543214,Engineering,Software Eng,United States,Active,Sarah Lee,95000
+C1006,Olivia Miller,invalid-email,9876543215,Finance,Analyst,Canada,Active,David Green,72000
+C1007,James Moore,james.moore@acme.com,12345,Finance,Analyst,Canada,Active,David Green,71000
+C1008,Sophia Taylor,sophia.taylor@acme.com,9876543217,Finance,Senior Analyst,Canada,Active,David Green,74000
+C1009,Liam Anderson,liam.anderson@acme.com,9876543218,Finance,Senior Analyst,Canada,Inactive,David Green,73500
+C1010,Unknown,unknown@acme.com,9876543219,Finance,Analyst,Canada,Active,David Green,72000
+C1011,Charlotte Thomas,charlotte.thomas@acme.com,9876543220,Sales,Sales Executive,Australia,Active,Rachel White,68000
+C1012,Lucas Jackson,lucas.jackson@acme.com,9876543221,Sales,Sales Executive,Australia,Inactive,Rachel White,67000
+C1013,Amelia White,amelia.white@acme.com,9876543222,Sales,Sales Executive,Australia,Inactive,Rachel White,67500
+C1014,Ethan Harris,ethan.harris@acme.com,9876543223,Sales,Sales Executive,Australia,Inactive,Rachel White,69000
+C1015,Mia Martin,mia.martin@acme.com,9876543224,Sales,Sales Executive,Australia,Inactive,Rachel White,68500
+C1016,Noah Thompson,noah.thompson@acme.com,9876543225,HR,HR Specialist,India,Active,Karen Adams,65000
+C1017,Ava Garcia,ava.garcia@acme.com,9876543226,HR,HR Specialist,India,Active,Karen Adams,65500
+C1018,Test User,test.user@acme.com,9876543227,Engineering,Software Engineer,USA,Active,Sarah Lee,95000
+C1019,Ben Walker,ben.walker@acme.com,9876543228,Operations,Coordinator,India,Active,,62000
+C1020,Harper Hall,harper.hall@acme.com,9876543229,Operations,Coordinator,,Active,Kevin Scott,62500
+C1021,Daniel Allen,daniel.allen@acme.com,9876543230,Operations,Coordinator,India,,Kevin Scott,63000
+C1022,Ella Young,ella.young@acme.com,9876543231,engineering,Software Engineer,USA,Active,Sarah Lee,96000
+C1023,Matthew King,matthew.king@acme.com,9876543232,Engineering,Software Engineer,United States,Active,Sarah Lee,96500
+C1024,Grace Wright,grace.wright@acme.com,9876543233,Engineering,Software Engineer,United States,Active,Sarah Lee,97000
+C1025,Henry Lopez,henry.lopez@acme.com,9876543234,Engineering,Contractor,United States,Active,Sarah Lee,88000
+C1026,Lily Hill,lily.hill@acme.com,9876543235,Engineering,Contractor,USA,Active,Sarah Lee,88500
+C1027,Jack Scott,jack.scott@acme.com,9876543236,Support,Support Engineer,India,Active,Chris Evans,61000
+C1028,Jack Scott,jack.scott@acme.com,9876543236,Support,Support Engineer,India,Active,Chris Evans,61000
+C1029,N/A,na@acme.com,9876543237,Support,Support Engineer,India,Active,Chris Evans,500000
+C1030,Emily Baker,emily.baker@acme.com,9876543238,Support,Support Engineer,India,Active,Chris Evans,61500

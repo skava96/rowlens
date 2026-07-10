@@ -41,7 +41,8 @@ function toDatasetCellValue(value: unknown): DatasetCellValue {
     if (
         typeof value === "string" ||
         typeof value === "number" ||
-        typeof value === "boolean"
+        typeof value === "boolean" ||
+        value instanceof Date
     ) {
         return value;
     }

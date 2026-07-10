@@ -14,7 +14,7 @@ export default function DatasetsLayout({
               </h1>
 
               <p className="mt-1 max-w-4xl text-sm text-muted-foreground">
-                Review uploaded records, generate browser-based AI observations, approve data-quality suggestions, audit
+                Review uploaded CSV or XLSX records, generate browser-based Supplemental Observations, approve data-quality suggestions, audit
                 changes, and export cleaned CSV outputs.
               </p>
             </div>

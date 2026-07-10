@@ -21,6 +21,8 @@ import {
   AI_MODEL_LOAD_TIMEOUT_MS,
   AI_ROW_ANALYSIS_TIMEOUT_MS,
 } from "./config";
+import { extractCandidatePatterns } from "./extractCandidatePatterns";
+import { buildAIAnalysisContext } from "./buildAIAnalysisContext";
 
 function createAnalysisRows(state: DatasetWorkflowState) {
   return state.rows.slice(0, AI_ANALYSIS_MAX_ROWS).map((row) => ({
@@ -34,30 +36,86 @@ function createAnalysisRows(state: DatasetWorkflowState) {
 export function createDatasetInsightInput(
   state: DatasetWorkflowState
 ): DatasetInsightInput {
-  return {
+
+  const datasetProfile = {
     rowCount: state.rows.length,
     columnCount: state.columns.length,
+  };
+  const validationSummary = {
+    validRows: state.rows.filter((row) => row.validationState === "valid").length,
+    missingRows: state.rows.filter((row) => row.validationState === "missing").length,
+    invalidRows: state.rows.filter((row) => row.validationState === "invalid").length,
+  };
+
+  const pendingSuggestions = state.suggestions.filter(
+    (suggestion) => suggestion.status === "pending"
+  );
+
+  const reviewQueueSummary = {
+    pending: pendingSuggestions.length,
+    highSeverity: pendingSuggestions.filter((s) => s.severity === "high").length,
+    mediumSeverity: pendingSuggestions.filter((s) => s.severity === "medium").length,
+    lowSeverity: pendingSuggestions.filter((s) => s.severity === "low").length,
+    topIssueFields: [
+      ...new Set(
+        pendingSuggestions
+          .map((s) => s.targetField)
+          .filter((field): field is string => Boolean(field))
+      ),
+    ].slice(0, 5),
+  };
+
+  const columnSignals = state.columns.slice(0, 10).map((column) => {
+    const values = state.rows.map((row) => row.values[column.key]);
+
+    const populated = values.filter(
+      (value) => value !== null && value !== undefined && value !== ""
+    ).length;
+
+    return {
+      field: column.key,
+      label: column.label,
+      completeness:
+        state.rows.length === 0
+          ? 100
+          : Math.round((populated / state.rows.length) * 100),
+      uniqueValues: new Set(values).size,
+    };
+  });
+
+  const candidatePatterns = extractCandidatePatterns({
+    rows: state.rows,
+    columns: state.columns,
+  });
+
+  const aiColumnEvidence = buildAIAnalysisContext({
+    rows: state.rows,
+    columns: state.columns,
+  });
+
+  return {
+    rowCount: datasetProfile.rowCount,
+    columnCount: datasetProfile.columnCount,
     columns: state.columns.map((column) => ({ ...column })),
-    validRowCount: state.rows.filter((row) => row.validationState === "valid")
-      .length,
-    invalidRowCount: state.rows.filter(
-      (row) => row.validationState === "invalid"
-    ).length,
-    missingRowCount: state.rows.filter(
-      (row) => row.validationState === "missing"
-    ).length,
-    pendingSuggestions: state.suggestions
-      .filter((suggestion) => suggestion.status === "pending")
-      .map((suggestion) => ({
-        id: suggestion.id,
-        title: suggestion.title,
-        severity: suggestion.severity,
-        affectedRows: [...suggestion.affectedRows],
-        action: suggestion.action,
-        targetField: suggestion.targetField,
-      })),
+    validRowCount: validationSummary.validRows,
+    invalidRowCount: validationSummary.invalidRows,
+    missingRowCount: validationSummary.missingRows,
+    pendingSuggestions: pendingSuggestions.map((suggestion) => ({
+      id: suggestion.id,
+      title: suggestion.title,
+      severity: suggestion.severity,
+      affectedRows: [...suggestion.affectedRows],
+      action: suggestion.action,
+      targetField: suggestion.targetField,
+    })),
     profile: state.profile,
     analysisRows: createAnalysisRows(state),
+    datasetProfile,
+    validationSummary,
+    reviewQueueSummary,
+    columnSignals,
+    candidatePatterns,
+    aiColumnEvidence,
   };
 }
 
@@ -138,7 +196,7 @@ export async function generateDatasetInsights(
       state.suggestions,
       error instanceof Error
         ? error.message
-        : "Browser AI failed and fallback insights were generated."
+        : "Browser AI failed and Deterministic Summary were generated."
     );
   }
 }
@@ -224,7 +282,7 @@ function createMergedAnalysisSummary({
   findings: AIModelInsightOutput["findings"];
 }) {
   if (findings.length === 0) {
-    return `AI analysis complete. ${rowsAnalyzed} of ${totalRows} rows were analyzed, and no separate AI-discovered findings were added beyond deterministic validation.`;
+    return "AI analysis complete. No additional review candidates were found beyond deterministic validation after analyzing all sampled rows.";
   }
 
   const severityCounts = findings.reduce(
@@ -250,11 +308,11 @@ function createMergedAnalysisSummary({
 
   return [
     `AI analysis complete. ${rowsAnalyzed} of ${totalRows} rows were analyzed.`,
-    `${findings.length} findings were discovered (${severityCounts.high} high, ${severityCounts.medium} medium, ${severityCounts.low} low).`,
+    `${findings.length} supplemental observations were generated (${severityCounts.high} high, ${severityCounts.medium} medium, ${severityCounts.low} low).`,
     targetFields.length
-      ? `Top fields: ${targetFields.join(", ")}.`
-      : "Findings span row-level patterns.",
-    `${trackedFindings} already tracked in Review Queue, ${newFindings} new for review.`,
+      ? `Primary review fields: ${targetFields.join(", ")}.`
+      : "Observations span multiple review areas.",
+    `${trackedFindings} already exist in the Review Queue, ${newFindings} are new recommendations.`,
   ].join(" ");
 }
 
@@ -330,9 +388,10 @@ export async function runProgressiveDatasetAIAnalysis(
     }
 
     const chunks = createAIRowChunks({ rows: input.analysisRows });
+    
     let mergedFindings: AIModelInsightOutput["findings"] = [];
     const latestSummary =
-      "Local AI is loading or analyzing sampled rows. Observations will appear if useful supplemental patterns are found.";
+      "Preparing local Pattern Discovery. If local AI is unavailable, CleanFlow will continue with a deterministic review summary.";
     let latestState: AIAnalysisState = {
       status: "loading_model",
       providerName: browserProvider.name,
@@ -380,12 +439,6 @@ export async function runProgressiveDatasetAIAnalysis(
         });
 
       } catch (error) {
-        console.error("CleanFlow AI row range failed", {
-          start: chunk.startRowNumber,
-          end: chunk.endRowNumber,
-          error,
-        });
-
         if (!completedRowRange) {
           throw error;
         }
@@ -444,8 +497,6 @@ export async function runProgressiveDatasetAIAnalysis(
 
     return latestState;
   } catch (error) {
-    console.error("[AI] fallback entered", error);
-    console.error("CleanFlow AI fallback entered", error);
 
     const fallbackState = await createFallbackAnalysisState({
       input,
@@ -458,13 +509,7 @@ export async function runProgressiveDatasetAIAnalysis(
           : "Browser AI analysis failed.",
     });
 
-    console.error("[AI] failed");
-
-    console.error(
-      error instanceof Error
-        ? error
-        : new Error("Browser AI analysis failed.")
-    );
+    void error;
 
     if (!options.isCancelled?.()) options.onUpdate?.(fallbackState);
     return fallbackState;

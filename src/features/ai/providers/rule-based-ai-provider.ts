@@ -103,7 +103,7 @@ function getCompletenessSummary(input: DatasetInsightInput) {
 
 export class RuleBasedAIProvider implements AIProvider {
   id = "rule-based";
-  name = "Deterministic fallback insights";
+  name = "Deterministic Summary";
 
   async getAvailability(): Promise<AIAvailability> {
     return { status: "available" };

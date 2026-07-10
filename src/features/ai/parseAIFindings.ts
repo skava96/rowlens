@@ -15,6 +15,7 @@ type RawFinding = {
   severity?: unknown;
   targetField?: unknown;
   affectedRows?: unknown;
+  selectedValues?: unknown;
   suggestedAction?: unknown;
   suggestedValue?: unknown;
   category?: unknown;
@@ -33,7 +34,6 @@ const allowedCategories = new Set<AIObservationCategory>([
   "pattern",
   "business_context",
   "review_priority",
-  "data_quality_summary",
 ]);
 
 const allowedActions = new Set<NonNullable<AIFinding["suggestedAction"]>>([
@@ -41,6 +41,8 @@ const allowedActions = new Set<NonNullable<AIFinding["suggestedAction"]>>([
   "standardize_value",
   "fill_missing",
 ]);
+
+const MAX_PARSED_AI_FINDINGS = 3;
 
 function cleanJsonText(text: string) {
   const trimmed = text.trim();
@@ -103,7 +105,7 @@ function normalizeCategory(value: unknown): AIObservationCategory {
 
 function normalizeSuggestedAction(
   value: unknown
-): NonNullable<AIFinding["suggestedAction"]> {
+): AIFinding["suggestedAction"] {
   if (
     typeof value === "string" &&
     allowedActions.has(value as NonNullable<AIFinding["suggestedAction"]>)
@@ -111,7 +113,7 @@ function normalizeSuggestedAction(
     return value as NonNullable<AIFinding["suggestedAction"]>;
   }
 
-  return "flag_invalid";
+  return undefined;
 }
 
 function normalizeSuggestedValue(value: unknown): DatasetCellValue | undefined {
@@ -177,6 +179,115 @@ function createFindingId({
   return `${source}-${slug || crypto.randomUUID()}`;
 }
 
+function isForbiddenDeterministicFinding(finding: RawFinding) {
+  const text = [
+    finding.title,
+    finding.description,
+    finding.reasoning,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    text.includes("missing") ||
+    text.includes("empty") ||
+    text.includes("invalid email") ||
+    text.includes("invalid phone") ||
+    text.includes("malformed email")
+  );
+}
+
+function normalizeSuggestedActionForFinding(
+  finding: RawFinding
+): AIFinding["suggestedAction"] {
+  const text = [
+    finding.title,
+    finding.description,
+    finding.reasoning,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    text.includes("standard") ||
+    text.includes("case") ||
+    text.includes("abbreviation") ||
+    text.includes("alias") ||
+    text.includes("written differently") ||
+    text.includes("fragment reports")
+  ) {
+    return "standardize_value";
+  }
+
+  return normalizeSuggestedAction(finding.suggestedAction) ?? "flag_invalid";
+}
+
+function normalizeSelectedValues(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function resolveAffectedRowsFromEvidence({
+  targetField,
+  selectedValues,
+  rawAffectedRows,
+  input,
+}: {
+  targetField: string;
+  selectedValues: string[];
+  rawAffectedRows: unknown;
+  input: DatasetInsightInput;
+}): number[] {
+  const explicitAffectedRows = normalizeAffectedRows(rawAffectedRows, input);
+
+  if (explicitAffectedRows.length > 0) {
+    return explicitAffectedRows;
+  }
+
+  const selected = new Set(selectedValues.map((value) => value.toLowerCase()));
+
+  return input.analysisRows
+    .filter((row) =>
+      selected.has(String(row.values[targetField] ?? "").trim().toLowerCase())
+    )
+    .map((row) => row.id)
+    .sort((left, right) => left - right);
+}
+
+function hasRealValueVariation({
+  targetField,
+  selectedValues,
+  input,
+}: {
+  targetField: string;
+  selectedValues: string[];
+  input: DatasetInsightInput;
+}) {
+  const selectedNormalized = new Set(
+    selectedValues.map((value) => value.trim().toLowerCase())
+  );
+
+  const actualValues = input.analysisRows
+    .map((row) => String(row.values[targetField] ?? "").trim())
+    .filter(Boolean);
+
+  const matchingValues = actualValues.filter((value) =>
+    selectedNormalized.has(value.toLowerCase())
+  );
+
+  return new Set(matchingValues).size > 1;
+}
+
 export function parseAIFindingsFromText({
   rawText,
   input,
@@ -199,21 +310,53 @@ export function parseAIFindingsFromText({
   const rawFindings = parsed.findings as unknown[];
 
   const findings = rawFindings
-    .slice(0, 3)
+    .slice(0, MAX_PARSED_AI_FINDINGS)
     .map((rawFinding: unknown): AIFinding | null => {
       if (!rawFinding || typeof rawFinding !== "object") return null;
 
       const finding = rawFinding as RawFinding;
 
+      if (isForbiddenDeterministicFinding(finding)) {
+        return null;
+      }
+
       const title = normalizeString(finding.title);
       const description = normalizeString(finding.description);
       const reasoning = normalizeString(finding.reasoning);
-      const affectedRows = normalizeAffectedRows(finding.affectedRows, input);
       const targetField = normalizeTargetField(finding.targetField, input);
 
-      if (!title || !description || !reasoning) return null;
-      if (!targetField || affectedRows.length === 0) return null;
+      if (!targetField) {
+        return null;
+      }
 
+      const selectedValues = normalizeSelectedValues(finding.selectedValues);
+
+      const affectedRows = resolveAffectedRowsFromEvidence({
+        targetField,
+        selectedValues,
+        rawAffectedRows: finding.affectedRows,
+        input,
+      });
+
+      const suggestedAction =
+        normalizeSuggestedActionForFinding(finding);
+
+      if (affectedRows.length === 0 || !suggestedAction) {
+        return null;
+      }
+
+      if (!title || !description || !reasoning) {
+        return null;
+      }
+
+      if (
+        suggestedAction === "standardize_value" &&
+        selectedValues.length > 0 &&
+        selectedValues.length < 2 &&
+        !hasRealValueVariation({ targetField, selectedValues, input })
+      ) {
+        return null;
+      }
       return {
         id: createFindingId({
           source,
@@ -221,7 +364,7 @@ export function parseAIFindingsFromText({
           targetField,
           affectedRows,
         }),
-        kind: "validation",
+        kind: "observation",
         title,
         description,
         reasoning,
@@ -229,8 +372,10 @@ export function parseAIFindingsFromText({
         severity: normalizeSeverity(finding.severity),
         targetField,
         affectedRows,
-        suggestedAction: normalizeSuggestedAction(finding.suggestedAction),
-        suggestedValue: normalizeSuggestedValue(finding.suggestedValue),
+        suggestedAction: suggestedAction,
+        suggestedValue: normalizeSuggestedValue(
+          finding.suggestedValue
+        ),
         source,
         status: "new",
         category: normalizeCategory(finding.category),
@@ -244,7 +389,7 @@ export function parseAIFindingsFromText({
     summary:
       findings.length > 0
         ? "Browser AI found supplemental suspicious patterns or incorrect data."
-        : "No supplemental suspicious patterns were found beyond the current Review Queue.",
+        : "No actionable review candidates were found.",
     findings,
   };
 }

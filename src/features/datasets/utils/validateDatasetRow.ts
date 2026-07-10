@@ -95,7 +95,9 @@ export function getEmailAutoFix(value: string) {
     !normalized.includes("@") &&
     normalized.toLowerCase().includes("atsign.")
   ) {
-    return normalized.replace(/atsign/i, "@");
+    const candidate = normalized.replace(/atsign[.\s_-]*/i, "@");
+
+    return isValidEmail(candidate) ? candidate : null;
   }
 
   return null;
@@ -141,8 +143,7 @@ function validateField(
       description: `Some rows have missing values in the "${field}" column.`,
       confidence: 96,
       severity: "medium" as const,
-      action: "fill_missing" as const,
-      suggestedValue: null,
+      action: "flag_invalid" as const,
     };
   }
 
@@ -290,7 +291,12 @@ export function getSuggestionIssueKey(suggestion: AISuggestion) {
 }
 
 export function getValidationIssueKey(issue: DatasetValidationIssue) {
-  return `${issue.action}:${issue.field}:${issue.title}`;
+  const suggestedValueKey =
+    issue.action === "standardize_value" || issue.action === "fill_missing"
+      ? `:${String(issue.suggestedValue ?? "")}`
+      : "";
+
+  return `${issue.action}:${issue.field}:${issue.title}${suggestedValueKey}`;
 }
 
 export function rowHasSuggestionIssue(
@@ -302,32 +308,21 @@ export function rowHasSuggestionIssue(
   return validateDatasetRow(values).issues.some((issue) => {
     if (issue.field !== suggestion.targetField) return false;
 
-    if (suggestion.action === "fill_missing") {
+    if (suggestion.action === "fill_missing" || suggestion.type === "missing") {
       return issue.kind === "missing";
     }
 
-    if (isEmailField(suggestion.targetField)) {
-      return issue.kind === "invalid_email";
+    if (issue.action !== suggestion.action) {
+      return false;
     }
 
-    if (isDateField(suggestion.targetField)) {
-      return issue.kind === "invalid_date";
+    if (
+      suggestion.action === "standardize_value" ||
+      suggestion.action === "flag_invalid"
+    ) {
+      return issue.suggestedValue === suggestion.suggestedValue;
     }
 
-    if (isCountryField(suggestion.targetField)) {
-      return (
-        issue.kind === "standardize_country" ||
-        issue.kind === "invalid_country"
-      );
-    }
-
-    if (isAccountStatusField(suggestion.targetField)) {
-      return (
-        issue.kind === "standardize_account_status" ||
-        issue.kind === "invalid_account_status"
-      );
-    }
-
-    return getValidationIssueKey(issue) === getSuggestionIssueKey(suggestion);
+    return issue.title === suggestion.title;
   });
 }

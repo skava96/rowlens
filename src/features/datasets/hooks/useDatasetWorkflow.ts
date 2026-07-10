@@ -170,6 +170,8 @@ export function useDatasetWorkflow(routeDatasetId: string) {
       dispatch({ type: "SUGGESTION_APPROVED", suggestionId: id, meta: createWorkflowMeta() }),
     rejectSuggestion: (id: string) =>
       dispatch({ type: "SUGGESTION_IGNORED", suggestionId: id, meta: createWorkflowMeta() }),
+    clearUploadFailure: () =>
+      dispatch({ type: "UPLOAD_FAILURE_CLEARED", datasetId: routeDatasetId }),
     clearSelectedSuggestion: () =>
       dispatch({ type: "SELECT_SUGGESTION", suggestionId: null, meta: createWorkflowMeta() }),
     updateCellValue: (rowId: number, field: string, value: string) =>

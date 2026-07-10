@@ -259,7 +259,7 @@ export function DatasetWorkspaceContainer({
       },
       {
         id: "insights",
-        label: "AI Insights",
+        label: "Pattern Discovery",
       },
       {
         id: "review",
@@ -388,6 +388,7 @@ export function DatasetWorkspaceContainer({
     <div className="space-y-4">
       <UploadCard
         onUploadStart={workflow.startUpload}
+        onUploadRejected={workflow.clearUploadFailure}
         status={workflow.state.status}
         fileName={workflow.state.fileName}
         error={workflow.state.error}
@@ -432,17 +433,6 @@ export function DatasetWorkspaceContainer({
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Validating rows, detecting issues, and preparing review actions.
-          </p>
-        </section>
-      )}
-
-      {workflow.state.status === "failed" && (
-        <section className="rounded-2xl border border-destructive/30 bg-card p-4 shadow-sm">
-          <p className="text-sm font-medium text-destructive">
-            Dataset processing failed
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {workflow.state.error ?? "Please try uploading the file again."}
           </p>
         </section>
       )}
@@ -531,6 +521,7 @@ export function DatasetWorkspaceContainer({
               activeSuggestionTitle={selectedSuggestion?.title}
               activeSuggestionStatus={selectedSuggestion?.status}
               activeSuggestionResolvedRowIds={selectedSuggestion?.resolvedRows}
+              activeSuggestionTargetField={selectedSuggestion?.targetField}
               onUpdateCell={workflow.updateCellValue}
               onExportRows={handleExportSelectedRows}
               onBulkMarkValid={workflow.bulkMarkRowsValid}

@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Eye,
+  FilePenLine,
   Rows3,
   ShieldAlert,
   WandSparkles,
@@ -21,6 +22,7 @@ import {
 
 import { AISuggestion } from "@/types/dataset";
 import { cn } from "@/lib/utils";
+import { sortReviewSuggestions } from "@/features/datasets/utils/sortReviewSuggestions";
 
 type Props = {
   suggestions: AISuggestion[];
@@ -112,7 +114,7 @@ function SuggestionCard({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-xl border px-5 py-4 shadow-sm transition-colors",
+        "relative overflow-hidden rounded-xl border px-4 py-3 shadow-sm transition-colors",
         getStatusTone(suggestion.status),
         suggestion.status === "pending" &&
         isPriority &&
@@ -123,7 +125,7 @@ function SuggestionCard({
         <div className="absolute inset-y-0 left-0 w-1 bg-sky-500" />
       )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold leading-5 text-foreground">
@@ -189,6 +191,13 @@ function SuggestionCard({
                 Suggested fix: {String(suggestion.suggestedValue)}
               </span>
             )}
+
+            {suggestion.status === "pending" && !hasAutoFix && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+                <FilePenLine className="h-3 w-3" />
+                Manual review required
+              </span>
+            )}
           </div>
         </div>
 
@@ -210,16 +219,10 @@ function SuggestionCard({
         </div>
       </div>
 
-      {suggestion.status === "pending" && !hasAutoFix && (
-        <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-sm text-sky-800">
-          No automatic fix is available. Review the affected row and edit it
-          manually if needed.
-        </div>
-      )}
-
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           size="sm"
+          variant={isResolved ? "outline" : "default"}
           onClick={() => onReview(suggestion.id)}
           aria-label={
             isResolved
@@ -237,6 +240,7 @@ function SuggestionCard({
               <Button
                 size="sm"
                 variant="outline"
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                 onClick={() => onApprove?.(suggestion.id)}
                 aria-label={`Apply suggested fix: ${suggestion.title}`}
               >
@@ -267,6 +271,8 @@ export default function SuggestionPanel({
   onRejectSuggestion,
   onReviewSuggestion,
 }: Props) {
+  const orderedSuggestions = sortReviewSuggestions(suggestions);
+
   if (!hasDataset) {
     return (
       <Card className="p-6 text-center">
@@ -279,7 +285,7 @@ export default function SuggestionPanel({
     );
   }
 
-  if (!suggestions.length) {
+  if (!orderedSuggestions.length) {
     return (
       <Card>
         <CardContent className="p-4 text-sm text-muted-foreground">
@@ -289,11 +295,11 @@ export default function SuggestionPanel({
     );
   }
 
-  const pendingSuggestions = suggestions.filter(
+  const pendingSuggestions = orderedSuggestions.filter(
     (suggestion) => suggestion.status === "pending"
   );
 
-  const resolvedSuggestions = suggestions.filter(
+  const resolvedSuggestions = orderedSuggestions.filter(
     (suggestion) => suggestion.status !== "pending"
   );
 
@@ -318,7 +324,7 @@ export default function SuggestionPanel({
 
         <CardDescription className="mt-3">
           {hasPendingSuggestions
-            ? "Review affected rows, apply fixes where appropriate, and complete all recommendations before export."
+          ? "Review affected rows, then apply safe fixes or mark manual-review items as ignored."
             : "All detected recommendations have been approved, ignored, or resolved by manual edits. You can inspect resolved decisions below or continue to export."}
         </CardDescription>
       </div>

@@ -1,5 +1,6 @@
 import { DatasetWorkflowState } from "../types/workflow";
 import {
+  WORKFLOW_STORAGE_CHANGED_EVENT,
   getWorkflowStorageKey,
   readStoredWorkflowState,
   serializeWorkflowState,
@@ -45,6 +46,12 @@ export const localWorkflowRepository: DatasetWorkflowRepository = {
         serializeWorkflowState(state)
       );
 
+      window.dispatchEvent(
+        new CustomEvent(WORKFLOW_STORAGE_CHANGED_EVENT, {
+          detail: { datasetId: state.datasetId },
+        })
+      );
+
       return {
         ok: true,
         source: "draft-cache",
@@ -61,6 +68,12 @@ export const localWorkflowRepository: DatasetWorkflowRepository = {
   clearDraft(datasetId): WorkflowRepositoryWriteResult {
     try {
       localStorage.removeItem(getWorkflowStorageKey(datasetId));
+
+      window.dispatchEvent(
+        new CustomEvent(WORKFLOW_STORAGE_CHANGED_EVENT, {
+          detail: { datasetId },
+        })
+      );
 
       return {
         ok: true,

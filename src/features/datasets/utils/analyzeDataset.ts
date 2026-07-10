@@ -16,8 +16,8 @@ type SuggestionBucket = {
   suggestedValue: AISuggestion["suggestedValue"];
 };
 
-function createSuggestionId(title: string) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+function createSuggestionId(key: string) {
+  return key.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
 export function analyzeDataset(rows: DatasetRow[]) {
@@ -36,21 +36,20 @@ export function analyzeDataset(rows: DatasetRow[]) {
 
   const analyzedRows: DatasetRow[] = rows.map((row) => {
     const validation = validateDatasetRow(row.values);
-    const primaryIssue = validation.issues[0];
 
-    if (primaryIssue) {
-      addSuggestion(getValidationIssueKey(primaryIssue), {
-        type: primaryIssue.type,
-        title: primaryIssue.title,
-        description: primaryIssue.description,
-        confidence: primaryIssue.confidence,
+    validation.issues.forEach((issue) => {
+      addSuggestion(getValidationIssueKey(issue), {
+        type: issue.type,
+        title: issue.title,
+        description: issue.description,
+        confidence: issue.confidence,
         affectedRows: [row.id],
-        severity: primaryIssue.severity,
-        action: primaryIssue.action,
-        targetField: primaryIssue.field,
-        suggestedValue: primaryIssue.suggestedValue,
+        severity: issue.severity,
+        action: issue.action,
+        targetField: issue.field,
+        suggestedValue: issue.suggestedValue,
       });
-    }
+    });
 
     return {
       ...row,
@@ -59,9 +58,9 @@ export function analyzeDataset(rows: DatasetRow[]) {
     };
   });
 
-  const suggestions: AISuggestion[] = Array.from(suggestionBuckets.values()).map(
-    (suggestion) => ({
-      id: createSuggestionId(suggestion.title),
+  const suggestions: AISuggestion[] = Array.from(suggestionBuckets.entries()).map(
+    ([key, suggestion]) => ({
+      id: createSuggestionId(key),
       ...suggestion,
       status: "pending",
     })
