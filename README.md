@@ -2,6 +2,10 @@
 
 ![CI](https://github.com/skava96/rowlens/actions/workflows/ci.yml/badge.svg)
 
+![Next.js](https://img.shields.io/badge/Next.js-16-black)
+![React](https://img.shields.io/badge/React-19-61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)
+
 > Browser-first dataset review workspace built with Next.js, React, TypeScript, and optional on-device AI analysis powered by WebLLM.
 
 RowLens is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
@@ -34,7 +38,7 @@ Many of these patterns are commonly found in internal platforms, operational sys
 - Reducer-driven workflow state with audit history and undo support
 - Browser-based dataset parsing and on-device AI analysis
 - Optional on-device Pattern Discovery powered by WebLLM and WebGPU
-- Deterministic validation remains the source of truth, while optional Browser AI provides supplemental observations.
+- Deterministic validation remains authoritative while optional Browser AI provides advisory observations.
 - Repository and adapter architecture enabling replaceable infrastructure boundaries
 - Route-scoped workspaces with isolated persistence
 
@@ -73,6 +77,22 @@ recommended actions before approving changes.
 
 ---
 
+## Pattern Discovery
+
+Generate optional AI-assisted observations using an on-device WebLLM model. Pattern Discovery uses an optional on-device WebLLM model to analyze a representative sample of dataset rows and surface higher-level data quality observations. These findings are advisory only and never replace deterministic validation.
+
+Features include:
+
+- On-device AI analysis using WebLLM
+- WebGPU acceleration on supported browsers
+- Advisory findings with human review
+- Deterministic validation remains authoritative
+- Graceful fallback when Browser AI is unavailable
+
+![Pattern Discovery](./public/screenshots/05-pattern-discovery.png)
+
+---
+
 ## Records Investigation
 
 Navigate directly to affected rows and investigate validation issues in context.
@@ -94,7 +114,7 @@ workflow history.
 
 Explore the deployed application:
 
-**https://rowlens.vercel.app**
+[Live Demo](https://rowlens.vercel.app)
 
 Load the included sample dataset to explore the complete review workflow.
 
@@ -120,7 +140,7 @@ For the best experience, your browser should support:
 - A modern Chromium-based browser (such as Chrome or Microsoft Edge)
 - Sufficient GPU memory to load the selected local model
 
-The initial model download may take some time depending on your connection because the model is loaded into the browser on first use.
+The initial model download may take some time depending on your connection because the model is loaded into the browser on first use. Model assets are cached by the browser after the initial download, reducing subsequent load times.
 
 If Browser AI is unavailable, model loading fails, or inference times out, RowLens automatically falls back to deterministic validation. Dataset upload, validation, review workflows, editing, auditing, and export remain fully functional without AI.
 
@@ -276,7 +296,7 @@ The application was designed around a few core principles:
 * CSV generation
 * Formula injection protection
 
-### Browser AI
+### Optional Browser AI
 
 * Local WebLLM execution
 * WebGPU acceleration
@@ -284,7 +304,7 @@ The application was designed around a few core principles:
 * Deterministic fallback mode
 * No external AI API required
 
-## Project Structure
+## Repository Structure
 
 The codebase follows a feature-oriented architecture.
 
@@ -606,7 +626,7 @@ npm run build
 npm run test:run
 ```
 
-Automated tests cover both domain logic and UI behavior:
+Automated tests cover reducer logic, domain utilities, workflow behavior, and user interface interactions:
 
 * Workflow reducer behavior
 * Dataset parsing
@@ -695,16 +715,14 @@ RowLens was intentionally scoped as a frontend-focused application. Potential fu
 
 # Engineering Challenges Addressed
 
-- Dynamic schema rendering from arbitrary uploaded datasets
-- Maintaining responsive UI during file parsing and AI analysis
-- Coordinating workflow, table, audit, and AI state without global state libraries
-- Preserving auditability while supporting undo operations
+- Designing reducer-driven workflow state for complex review lifecycles
+- Rendering dynamic table schemas from arbitrary datasets
+- Preserving auditability while supporting safe undo operations
+- Maintaining responsive browser performance during parsing and AI analysis
 - Separating deterministic validation from probabilistic AI guidance
-- Designing extensible repository and adapter boundaries for future infrastructure replacements
+- Creating replaceable repository and adapter boundaries for future infrastructure evolution
 
 ---
-
-# License
 
 # License
 
@@ -712,6 +730,6 @@ Copyright © 2026 Steffi Kavalakat.
 
 This repository is published for portfolio and technical evaluation purposes.
 
-The source code may be viewed for learning and hiring evaluation but may not be copied, redistributed, modified, or used in other projects without prior written permission.
+You may browse the source code for learning and evaluation. Copying, modifying, redistributing, or using substantial portions of this code in other projects is not permitted without prior written permission.
 
-See the LICENSE file for details.
+See LICENSE for details.
