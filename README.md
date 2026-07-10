@@ -1,10 +1,10 @@
-# CleanFlow AI
+# RowLens
 
-![CI](https://github.com/skava96/cleanflow-ai/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/skava96/rowlens/actions/workflows/ci.yml/badge.svg)
 
 > Browser-first dataset review workspace built with Next.js, React, TypeScript, and optional on-device AI analysis powered by WebLLM.
 
-CleanFlow AI is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
+RowLens is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
 
 The project was built as a portfolio-grade application to demonstrate senior frontend engineering practices across state management, data-intensive UI design, browser performance, workflow orchestration, local AI integration, and maintainable application architecture.
 
@@ -12,7 +12,7 @@ The project was built as a portfolio-grade application to demonstrate senior fro
 
 # What This Demonstrates
 
-CleanFlow AI was built to showcase frontend engineering skills commonly required in modern enterprise platforms:
+RowLens was built to showcase frontend engineering skills commonly required in modern enterprise platforms:
 
 - React and TypeScript application architecture
 - Data-intensive user interfaces
@@ -47,7 +47,7 @@ Many of these patterns are commonly found in internal platforms, operational sys
 The primary dataset review workspace showing dataset profiling, validation metrics,
 review readiness, and workflow status.
 
-![Workspace Overview](./public/screenshots/cleanflow-workspace-overview.png)
+![Workspace Overview](./public/screenshots/rowlens-overview.png)
 
 ---
 
@@ -94,7 +94,7 @@ workflow history.
 
 Explore the deployed application:
 
-**https://cleanflow-workspace.vercel.app**
+**https://rowlens.vercel.app**
 
 Load the included sample dataset to explore the complete review workflow.
 
@@ -122,11 +122,11 @@ For the best experience, your browser should support:
 
 The initial model download may take some time depending on your connection because the model is loaded into the browser on first use.
 
-If Browser AI is unavailable, model loading fails, or inference times out, CleanFlow AI automatically falls back to deterministic validation. Dataset upload, validation, review workflows, editing, auditing, and export remain fully functional without AI.
+If Browser AI is unavailable, model loading fails, or inference times out, RowLens automatically falls back to deterministic validation. Dataset upload, validation, review workflows, editing, auditing, and export remain fully functional without AI.
 
 ## Exploring the Demo
 
-The fastest way to explore CleanFlow AI is to open the deployed application and load the included sample dataset.
+The fastest way to explore RowLens is to open the deployed application and load the included sample dataset.
 
 Suggested walkthrough:
 
@@ -148,7 +148,7 @@ This walkthrough demonstrates the complete review workflow without requiring you
 
 Most data quality tools focus heavily on backend processing.
 
-CleanFlow AI explores the frontend engineering challenges involved in reviewing and correcting datasets:
+RowLens explores the frontend engineering challenges involved in reviewing and correcting datasets:
 
 * Dynamic data schemas
 * Large table interactions
@@ -164,7 +164,7 @@ The goal is not to build a complete SaaS platform but to demonstrate how a produ
 
 ## Current Constraints
 
-CleanFlow AI is intentionally scoped as a browser-first frontend application.
+RowLens is intentionally scoped as a browser-first frontend application.
 
 Current implementation constraints include:
 
@@ -176,7 +176,7 @@ Current implementation constraints include:
 
 ## Local-First & Privacy
 
-CleanFlow AI processes datasets entirely within the browser.
+RowLens processes datasets entirely within the browser.
 
 The current implementation:
 
@@ -463,7 +463,7 @@ Workflow changes are persisted locally and can be restored when revisiting a dat
 
 # AI Approach
 
-CleanFlow AI separates deterministic validation from AI-generated observations.
+RowLens separates deterministic validation from AI-generated observations.
 
 ## Deterministic Validation
 
@@ -663,7 +663,7 @@ http://localhost:3000
 
 # Design Boundaries
 
-CleanFlow AI is intentionally designed as a browser-first frontend application.
+RowLens is intentionally designed as a browser-first frontend application.
 
 The project focuses on:
 
@@ -680,7 +680,7 @@ Backend services, authentication, collaboration features, and server-side persis
 
 ## Future Enhancements
 
-CleanFlow AI was intentionally scoped as a frontend-focused application. Potential future extensions include:
+RowLens was intentionally scoped as a frontend-focused application. Potential future extensions include:
 
 - Server-backed workspace persistence
 - Authentication and role-based access

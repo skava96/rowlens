@@ -391,7 +391,7 @@ export async function runProgressiveDatasetAIAnalysis(
     
     let mergedFindings: AIModelInsightOutput["findings"] = [];
     const latestSummary =
-      "Preparing local Pattern Discovery. If local AI is unavailable, CleanFlow will continue with a deterministic review summary.";
+      "Preparing local Pattern Discovery. If local AI is unavailable, RowLens will continue with a deterministic review summary.";
     let latestState: AIAnalysisState = {
       status: "loading_model",
       providerName: browserProvider.name,

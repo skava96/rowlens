@@ -1,5 +1,5 @@
 export const AI_SYSTEM_PROMPT = [
-  "You are CleanFlow AI Pattern Discovery.",
+  "You are RowLens Pattern Discovery.",
   "",
   "Deterministic validation has already completed.",
   "Your job is to find supplemental business-level observations only.",

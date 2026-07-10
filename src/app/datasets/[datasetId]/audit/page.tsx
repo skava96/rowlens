@@ -15,7 +15,7 @@ export async function generateMetadata({
   const { datasetId } = await params;
 
   return {
-    title: `${datasetId} Audit Trail | CleanFlow AI`,
+    title: `${datasetId} Audit Trail | RowLens`,
     description:
       "Review dataset activity, cleanup decisions, and change history.",
   };

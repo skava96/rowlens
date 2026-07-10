@@ -10,11 +10,11 @@ export function Navbar() {
         <Link
           href="/datasets/customer-cleanup"
           className="flex items-center gap-3"
-          aria-label="Go to CleanFlow AI workspace"
+          aria-label="Go to RowLens workspace"
         >
           <Image
             src="/favicons/favicon.svg"
-            alt="CleanFlow AI"
+            alt="RowLens"
             width={40}
             height={40}
             className="rounded-2xl"
@@ -23,7 +23,7 @@ export function Navbar() {
 
           <div className="flex flex-col leading-none">
             <span className="text-sm font-semibold text-foreground">
-              CleanFlow AI
+              RowLens
             </span>
             <span className="text-xs text-muted-foreground">
               Dataset Quality Platform

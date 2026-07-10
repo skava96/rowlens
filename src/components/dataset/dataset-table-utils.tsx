@@ -23,7 +23,7 @@ export type TablePreferences = {
 };
 
 export function getTablePreferencesKey(schemaKey: string) {
-  return `cleanflow-table-preferences:${schemaKey}`;
+  return `rowlens-table-preferences:${schemaKey}`;
 }
 
 const TABLE_PREFERENCES_VERSION = 2;

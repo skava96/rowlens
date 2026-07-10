@@ -27,7 +27,7 @@ const workflowSnapshotCache = new Map<string, StoredWorkflowState>();
 const workflowRawCache = new Map<string, string | null>();
 
 function getWorkflowStorageKey(datasetId: string) {
-  return `cleanflow-workflow:${datasetId}`;
+  return `rowlens-workflow:${datasetId}`;
 }
 
 function getCachedWorkflowSnapshot(datasetId: string): StoredWorkflowState {

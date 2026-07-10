@@ -91,7 +91,7 @@ function EmptyWorkspacePreview({
           </p>
 
           <h2 className="mt-2 text-lg font-semibold text-foreground">
-            Explore CleanFlow with sample customer data
+            Explore RowLens with sample customer data
           </h2>
 
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -309,7 +309,7 @@ export function DatasetWorkspaceContainer({
       workflow.state.columns
     );
 
-    downloadCsv(csvContent, "cleanflow-clean-dataset.csv");
+    downloadCsv(csvContent, "rowlens-clean-dataset.csv");
 
     toast.success("Dataset exported", {
       description: `${workflow.state.rows.length} rows exported successfully.`,
@@ -322,7 +322,7 @@ export function DatasetWorkspaceContainer({
       workflow.state.columns
     );
 
-    downloadCsv(csvContent, "cleanflow-selected-rows.csv");
+    downloadCsv(csvContent, "rowlens-selected-rows.csv");
   };
 
   const validRowCount = workflow.state.rows.filter(

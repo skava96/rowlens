@@ -10,7 +10,7 @@ export default function Loading() {
 
                 <div className="mt-4 flex items-center justify-center gap-2">
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    <h1 className="text-lg font-semibold">Loading CleanFlow</h1>
+                    <h1 className="text-lg font-semibold">Loading RowLens</h1>
                 </div>
 
                 <p className="mt-2 text-sm text-muted-foreground">

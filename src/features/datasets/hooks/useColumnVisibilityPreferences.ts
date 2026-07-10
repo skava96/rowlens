@@ -7,10 +7,10 @@ import { DatasetColumn } from "@/types/dataset";
 const MAX_PINNED_COLUMNS = 2;
 
 const getColumnVisibilityKey = (schemaKey: string) =>
-  `cleanflow-visible-columns:${schemaKey}`;
+  `rowlens-visible-columns:${schemaKey}`;
 
 const getPinnedColumnsKey = (schemaKey: string) =>
-  `cleanflow-pinned-columns:${schemaKey}`;
+  `rowlens-pinned-columns:${schemaKey}`;
 
 type UseColumnVisibilityPreferencesArgs = {
   datasetId: string;
