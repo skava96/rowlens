@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cleanflow-workspace.vercel.app"),
+  metadataBase: new URL("https://rowlens.vercel.app"),
 
   title: {
-    default: "CleanFlow AI",
-    template: "%s | CleanFlow AI",
+    default: "RowLens",
+    template: "%s | RowLens",
   },
 
   description:
@@ -53,20 +53,20 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "CleanFlow AI",
+    title: "RowLens",
     description:
       "Browser-first dataset review platform with local Pattern Discovery powered by WebLLM.",
 
-    url: "https://cleanflow-workspace.vercel.app",
+    url: "https://rowlens.vercel.app",
 
-    siteName: "CleanFlow AI",
+    siteName: "RowLens",
 
     images: [
       {
         url: "/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "CleanFlow AI Workspace",
+        alt: "RowLens Workspace",
       },
     ],
 
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "CleanFlow AI",
+    title: "RowLens",
     description:
       "Browser-first dataset review platform with local Pattern Discovery powered by WebLLM.",
 

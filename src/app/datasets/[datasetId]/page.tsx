@@ -15,7 +15,7 @@ export async function generateMetadata({
   const workspace = getDatasetWorkspace(datasetId);
 
   return {
-    title: `${workspace?.workspaceName ?? "Dataset"} | CleanFlow AI`,
+    title: `${workspace?.workspaceName ?? "Dataset"} | RowLens`,
     description:
       workspace?.description ??
       "AI-assisted dataset review, validation, transformation, and audit workspace.",

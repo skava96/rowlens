@@ -61,7 +61,7 @@ export function useDatasetWorkflow(routeDatasetId: string) {
 
       if (!result.ok) {
         console.warn(
-          "CleanFlow draft persistence failed",
+          "RowLens draft persistence failed",
           result
         );
       }

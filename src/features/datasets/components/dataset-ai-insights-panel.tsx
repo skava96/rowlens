@@ -139,7 +139,7 @@ export function DatasetAIInsightsPanel({
       totalRows: workflowState.rows.length,
       analysisTargetRows: Math.min(workflowState.rows.length, 15),
       summary:
-        "Preparing local AI analysis. If Browser AI is unavailable, CleanFlow will continue using deterministic validation only.",
+        "Preparing local AI analysis. If Browser AI is unavailable, RowLens will continue using deterministic validation only.",
     });
 
     try {

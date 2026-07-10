@@ -13,7 +13,7 @@ export default function GlobalError({
     reset: () => void;
 }) {
     useEffect(() => {
-        console.error("CleanFlow route error", {
+        console.error("RowLens route error", {
             message: error.message,
             digest: error.digest,
         });
@@ -31,7 +31,7 @@ export default function GlobalError({
                 </h1>
 
                 <p className="mt-2 text-sm text-muted-foreground">
-                    CleanFlow ran into a problem while loading this workspace. Try again,
+                    RowLens ran into a problem while loading this workspace. Try again,
                     or refresh the page if the issue continues.
                 </p>
 

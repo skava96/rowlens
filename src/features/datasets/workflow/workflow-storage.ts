@@ -2,7 +2,7 @@ import { DatasetWorkflowState } from "../types/workflow";
 import { initialState } from "./workflow-reducer";
 
 const WORKFLOW_STORAGE_VERSION = 1;
-export const WORKFLOW_STORAGE_CHANGED_EVENT = "cleanflow-workflow-storage";
+export const WORKFLOW_STORAGE_CHANGED_EVENT = "rowlens-workflow-storage";
 
 type StoredWorkflowState = {
   version: typeof WORKFLOW_STORAGE_VERSION;
@@ -10,7 +10,7 @@ type StoredWorkflowState = {
 };
 
 export const getWorkflowStorageKey = (datasetId: string) =>
-  `cleanflow-workflow:${datasetId}`;
+  `rowlens-workflow:${datasetId}`;
 
 export function getInitialWorkflowState(
   routeDatasetId: string

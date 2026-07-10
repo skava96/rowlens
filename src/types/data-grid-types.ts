@@ -1,6 +1,6 @@
 import { DatasetColumn } from "@/types/dataset";
 
-export const MISSING_FILTER_VALUE = "__cleanflow_missing_value__";
+export const MISSING_FILTER_VALUE = "__rowlens_missing_value__";
 
 export type DataGridColumnsPanelModel = {
   columnSearchQuery: string;
