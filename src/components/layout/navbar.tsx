@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { WorkspaceNavLinks } from "./workspace-nav-links";
 
@@ -11,9 +12,14 @@ export function Navbar() {
           className="flex items-center gap-3"
           aria-label="Go to CleanFlow AI workspace"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 shadow-sm">
-            <span className="text-sm font-bold tracking-tight">CF</span>
-          </div>
+          <Image
+            src="/favicons/favicon.svg"
+            alt="CleanFlow AI"
+            width={40}
+            height={40}
+            className="rounded-2xl"
+            priority
+          />
 
           <div className="flex flex-col leading-none">
             <span className="text-sm font-semibold text-foreground">

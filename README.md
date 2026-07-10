@@ -1,6 +1,6 @@
 # CleanFlow AI
 
-> Browser-first dataset review workspace built with Next.js, React, TypeScript, and local AI inference using WebLLM.
+> Browser-first dataset review workspace built with Next.js, React, TypeScript, and optional on-device AI analysis powered by WebLLM.
 
 CleanFlow AI is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
 
@@ -30,10 +30,11 @@ Many of these patterns are commonly found in internal platforms, operational sys
 - Built a browser-first dataset review workspace using Next.js, React, and TypeScript
 - Dynamic schema generation from CSV and XLSX uploads
 - Reducer-driven workflow state with audit history and undo support
-- Browser-based dataset parsing and local AI inference
-- Local Pattern Discovery powered by WebLLM and WebGPU
+- Browser-based dataset parsing and on-device AI analysis
+- Optional on-device Pattern Discovery powered by WebLLM and WebGPU
+- Deterministic validation remains the source of truth, while optional Browser AI provides supplemental observations.
+- Repository and adapter architecture enabling replaceable infrastructure boundaries
 - Route-scoped workspaces with isolated persistence
-- Architecture organized around adapters, repositories, and feature boundaries
 
 ---
 
@@ -89,17 +90,55 @@ workflow history.
 
 ## Live Demo
 
-**Deployed Application**
+Explore the deployed application:
 
-[Live Demo](https://cleanflow-workspace.vercel.app)
+**https://cleanflow-workspace.vercel.app**
 
-Use the sample workspace to explore:
+Load the included sample dataset to explore the complete review workflow.
+
+The demo includes a sample dataset that showcases:
 
 - Dataset profiling
-- Review queue workflows
-- Record investigation
+- Deterministic validation
+- Review workflows
+- Manual editing
 - Audit history
-- Local Pattern Discovery
+- Export
+- Browser AI Pattern Discovery (supported devices only)
+
+---
+
+## Browser AI Requirements
+
+Pattern Discovery uses a local WebLLM model that is loaded on demand when the feature is invoked.
+
+For the best experience, your browser should support:
+
+- WebGPU
+- A modern Chromium-based browser (such as Chrome or Microsoft Edge)
+- Sufficient GPU memory to load the selected local model
+
+The initial model download may take some time depending on your connection because the model is loaded into the browser on first use.
+
+If Browser AI is unavailable, model loading fails, or inference times out, CleanFlow AI automatically falls back to deterministic validation. Dataset upload, validation, review workflows, editing, auditing, and export remain fully functional without AI.
+
+## Exploring the Demo
+
+The fastest way to explore CleanFlow AI is to open the deployed application and load the included sample dataset.
+
+Suggested walkthrough:
+
+1. Load the sample dataset.
+2. Review the detected validation issues.
+3. Open the Review Queue.
+4. Navigate to affected rows.
+5. Apply or ignore suggested fixes.
+6. Make a manual edit.
+7. Review the transformation history and audit trail.
+8. Export the cleaned dataset.
+9. Optionally run Pattern Discovery on supported devices.
+
+This walkthrough demonstrates the complete review workflow without requiring your own dataset.
 
 ---
 
@@ -118,6 +157,36 @@ CleanFlow AI explores the frontend engineering challenges involved in reviewing 
 * Local-first architecture
 
 The goal is not to build a complete SaaS platform but to demonstrate how a production-quality frontend could support these workflows.
+
+---
+
+## Current Constraints
+
+CleanFlow AI is intentionally scoped as a browser-first frontend application.
+
+Current implementation constraints include:
+
+- Uploads are intentionally limited to 5 MB and approximately 5,000 rows to maintain responsive browser performance.
+- XLSX parsing currently imports the first worksheet only.
+- Built-in validation currently focuses on common data quality issues such as missing values, invalid email formats, invalid date-like values, and value standardization.
+- Browser AI analyzes a capped sample of dataset rows to balance responsiveness and resource usage.
+- Local draft persistence uses browser storage and is intended for single-user workflows.
+
+## Local-First & Privacy
+
+CleanFlow AI processes datasets entirely within the browser.
+
+The current implementation:
+
+- Parses CSV and XLSX files locally.
+- Executes AI analysis locally through WebLLM when available.
+- Stores workflow drafts in browser localStorage.
+- Does not upload datasets or AI prompts to a backend service.
+- Does not require user accounts or external AI APIs.
+
+No uploaded dataset leaves the user's browser in the current implementation.
+
+Workflow drafts are stored in browser localStorage for a local-first experience. Because browser storage is not intended for sensitive production data, it should not be considered a secure persistence mechanism.
 
 ---
 
@@ -209,9 +278,26 @@ The application was designed around a few core principles:
 
 * Local WebLLM execution
 * WebGPU acceleration
-* AI-assisted review insights
+* AI-assisted review findings
 * Deterministic fallback mode
 * No external AI API required
+
+## Project Structure
+
+The codebase follows a feature-oriented architecture.
+
+```text
+src/
+  app/
+  components/
+  features/
+    ai/
+    datasets/
+  hooks/
+  lib/
+  types/
+  workers/
+```
 
 # Technology Stack
 
@@ -280,6 +366,9 @@ Validation Engine      Query Adapter
       |
       v
 Suggestions
+      |
+      v
+Review Queue
       |
       v
 Transformations
@@ -383,7 +472,7 @@ Source of truth for:
 * Invalid dates
 * Review queue generation
 
-## Browser AI
+## Optional Browser AI
 
 On supported devices:
 
@@ -391,9 +480,9 @@ On supported devices:
 * Executes entirely in the browser
 * Uses WebGPU acceleration
 * Analyzes a capped sample of dataset rows
-* Produces supplemental observations
+* Produces supplemental data quality observations
 
-The model is explicitly instructed not to invent validation issues and cannot override deterministic findings.
+The model is explicitly instructed not to invent validation issues and cannot override deterministic findings. AI findings are advisory only. They never modify dataset records directly and must be explicitly accepted before entering the review workflow.
 
 ## Fallback Mode
 
@@ -416,18 +505,18 @@ No external AI API is configured in this repository.
 CSV and XLSX parsing execute entirely in the browser with upload constraints
 designed to keep processing responsive for portfolio-scale datasets.
 
-### Local AI Execution
+### Browser AI Execution
 
-WebLLM inference executes locally using WebGPU acceleration when available.
-Dataset sampling and analysis limits prevent excessive browser resource usage.
+Browser AI inference executes locally using WebGPU acceleration when available.
+Dataset sampling, prompt size limits, and chunked analysis help keep local inference responsive on supported devices.
 
 ### Local Query Adapter
 
 Filtering and sorting are isolated behind query adapter boundaries to allow future replacement with server-side implementations.
 
-### Chunked AI Analysis
+### Constrained AI Analysis
 
-AI analysis is performed on limited row samples in small batches to avoid excessive browser resource consumption.
+AI analysis operates on a capped sample of dataset rows to balance responsiveness, browser memory usage, and inference latency.
 
 ---
 
@@ -515,13 +604,16 @@ npm run build
 npm run test:run
 ```
 
-Coverage includes:
+Automated tests cover both domain logic and UI behavior:
 
 * Workflow reducer behavior
 * Dataset parsing
 * Validation logic
 * Suggestion application
 * Table state management
+* Workflow restoration and persistence
+* Review workflow lifecycle
+* Manual editing and undo behavior
 * Browser AI helpers
 * UI state transitions
 
@@ -546,10 +638,10 @@ npm install
 npm run dev
 ```
 
-Open:
+Open the application:
 
 ```text
-http://localhost:3000/datasets/customer-cleanup
+http://localhost:3000
 ```
 
 ---
@@ -577,14 +669,29 @@ The project focuses on:
 - Data-intensive UI patterns
 - State management
 - Browser-based processing
-- Local AI inference
+- Browser AI inference
 - Auditability and change tracking
 
 Backend services, authentication, collaboration features, and server-side persistence were intentionally excluded to keep the project focused on frontend architecture and user experience design.
 
 ---
 
-# Key Engineering Challenges Solved
+## Future Enhancements
+
+CleanFlow AI was intentionally scoped as a frontend-focused application. Potential future extensions include:
+
+- Server-backed workspace persistence
+- Authentication and role-based access
+- Collaborative review workflows
+- Configurable validation rules
+- Domain-specific validation plugins
+- Pluggable AI providers
+- Background dataset processing
+- Additional export formats
+
+---
+
+# Engineering Challenges Addressed
 
 - Dynamic schema rendering from arbitrary uploaded datasets
 - Maintaining responsive UI during file parsing and AI analysis

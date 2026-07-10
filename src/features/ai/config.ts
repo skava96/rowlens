@@ -11,12 +11,14 @@ export const AI_MAX_PREVIOUS_FINDINGS = 0;
 export const AI_MAX_PROMPT_CHARACTERS = 8000;
 
 export const AI_MODEL_STABLE = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+export const AI_MODEL_BALANCED = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
 export const AI_MODEL_BETTER = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
-export const AI_DEFAULT_MODEL = AI_MODEL_BETTER;
+export const AI_DEFAULT_MODEL = AI_MODEL_BALANCED;
 
 export function formatAIModelName(modelName: string) {
   if (modelName === AI_MODEL_STABLE) return "Qwen2.5 0.5B";
+  if (modelName === AI_MODEL_BALANCED) return "Qwen2.5 1.5B";
   if (modelName === AI_MODEL_BETTER) return "Qwen2.5 3B";
 
   return modelName;
