@@ -1,5 +1,7 @@
 # CleanFlow AI
 
+![CI](https://github.com/skava96/cleanflow-ai/actions/workflows/ci.yml/badge.svg)
+
 > Browser-first dataset review workspace built with Next.js, React, TypeScript, and optional on-device AI analysis powered by WebLLM.
 
 CleanFlow AI is a frontend-focused data quality and review platform that allows users to upload datasets, identify issues, review suggested fixes, track changes, and export cleaned data.
@@ -703,5 +705,13 @@ CleanFlow AI was intentionally scoped as a frontend-focused application. Potenti
 ---
 
 # License
+
+# License
+
+Copyright © 2026 Steffi Kavalakat.
+
+This repository is published for portfolio and technical evaluation purposes.
+
+The source code may be viewed for learning and hiring evaluation but may not be copied, redistributed, modified, or used in other projects without prior written permission.
 
 See the LICENSE file for details.
