@@ -565,8 +565,8 @@ describe("workflowReducer", () => {
       });
     expect(next.suggestions.find((item) => item.id === "invalid-country"))
       .toMatchObject({
-        status: "pending",
-        resolvedRows: [],
+        status: "resolved",
+        resolvedRows: [4],
       });
   });
 
