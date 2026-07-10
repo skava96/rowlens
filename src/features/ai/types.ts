@@ -53,6 +53,74 @@ export type DatasetInsightAnalysisRow = {
   validationField?: string;
 };
 
+export type DatasetProfileSummary = {
+  rowCount: number;
+  columnCount: number;
+  validationScore?: number;
+};
+
+export type ValidationSummary = {
+  validRows: number;
+  missingRows: number;
+  invalidRows: number;
+};
+
+export type ReviewQueueSummary = {
+  pending: number;
+  highSeverity: number;
+  mediumSeverity: number;
+  lowSeverity: number;
+  topIssueFields: string[];
+};
+
+export type ColumnSignal = {
+  field: string;
+  completeness?: number;
+  uniqueValues?: number;
+};
+
+export type AICandidatePattern = {
+  id: string;
+  type:
+    | "format_inconsistency"
+    | "categorical_alias"
+    | "placeholder_value"
+    | "numeric_outlier";
+
+  title: string;
+  description: string;
+
+  targetField: string;
+
+  affectedRows: number[];
+
+  evidence: Array<{
+    rowId: number;
+    value: string;
+  }>;
+
+  suggestedAction: "flag_invalid" | "standardize_value";
+
+  severity: "low" | "medium" | "high";
+};
+
+export type AIColumnEvidence = {
+  field: string;
+  label: string;
+  completeness: number;
+  distinctCount: number;
+  topValues: {
+    value: string;
+    count: number;
+  }[];
+  textExamples: string[];
+  numericSummary?: {
+    min: number;
+    median: number;
+    max: number;
+  };
+};
+
 export type DatasetInsightInput = {
   rowCount: number;
   columnCount: number;
@@ -63,6 +131,12 @@ export type DatasetInsightInput = {
   pendingSuggestions: DatasetInsightSuggestionInput[];
   profile: DatasetWorkflowState["profile"];
   analysisRows: DatasetInsightAnalysisRow[];
+  datasetProfile: DatasetProfileSummary;
+  validationSummary: ValidationSummary;
+  reviewQueueSummary: ReviewQueueSummary;
+  columnSignals: ColumnSignal[];
+  candidatePatterns: AICandidatePattern[];
+  aiColumnEvidence: AIColumnEvidence[];
 };
 
 export type DatasetInsightMode = "fallback" | "browser-ai";
@@ -112,6 +186,7 @@ export type AIAnalysisStatus =
   | "loading_model"
   | "analyzing"
   | "completed"
+  | "cancelled"
   | "failed"
   | "unavailable";
 

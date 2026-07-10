@@ -25,6 +25,10 @@ function formatAction(action: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatTransformationTitle(transformation: DatasetTransformation) {
+  return transformation.suggestionTitle;
+}
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "Empty";
@@ -127,7 +131,7 @@ export function TransformationHistory({
 
         <div className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
           {transformations.length} recorded{" "}
-          {transformations.length === 1 ? "change" : "changes"}
+          {transformations.length === 1 ? "transformation" : "transformations"}
         </div>
       </div>
 
@@ -165,7 +169,7 @@ export function TransformationHistory({
                       />
 
                       <h3 className="text-sm font-semibold text-foreground">
-                        {transformation.suggestionTitle}
+                        {formatTransformationTitle(transformation)}
                       </h3>
 
                       <span

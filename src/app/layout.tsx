@@ -15,8 +15,64 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CleanFlow AI",
-  description: "AI-assisted dataset review platform built with Next.js, React, TypeScript, and WebLLM.",
+  metadataBase: new URL("https://cleanflow-workspace.vercel.app"),
+
+  title: {
+    default: "CleanFlow AI",
+    template: "%s | CleanFlow AI",
+  },
+
+  description:
+    "Browser-first dataset review platform built with Next.js, React, TypeScript, and local AI inference using WebLLM.",
+
+  keywords: [
+    "Next.js",
+    "React",
+    "TypeScript",
+    "WebLLM",
+    "AI",
+    "Dataset Review",
+    "Data Quality",
+    "Portfolio",
+    "Frontend",
+  ],
+
+  authors: [
+    {
+      name: "Steffi Kavalakat",
+    },
+  ],
+
+  openGraph: {
+    title: "CleanFlow AI",
+    description:
+      "Browser-first dataset review platform with local Pattern Discovery powered by WebLLM.",
+
+    url: "https://cleanflow-workspace.vercel.app",
+
+    siteName: "CleanFlow AI",
+
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "CleanFlow AI Workspace",
+      },
+    ],
+
+    locale: "en_US",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "CleanFlow AI",
+    description:
+      "Browser-first dataset review platform with local Pattern Discovery powered by WebLLM.",
+
+    images: ["/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({

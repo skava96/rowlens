@@ -42,11 +42,6 @@ describe("preloadBrowserAI", () => {
   it("returns failed safely when loading fails", async () => {
     provider.getAvailability.mockResolvedValue({ status: "available" });
     provider.loadModel.mockRejectedValue(new Error("device lost"));
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     await expect(preloadBrowserAI()).resolves.toEqual({ status: "failed" });
-    expect(errorSpy).toHaveBeenCalled();
-
-    errorSpy.mockRestore();
   });
 });

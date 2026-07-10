@@ -181,29 +181,46 @@ export default function DatasetOverview({ data }: DatasetOverviewProps) {
           </div>
 
           <div className="max-h-[360px] overflow-auto rounded-xl border border-border">
-            <div className="sticky top-0 z-10 grid grid-cols-4 items-center border-b border-border/60 bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              <span>Column</span>
-              <span>Type</span>
-              <span>Completeness</span>
-              <span>Unique values</span>
-            </div>
+            <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th className="w-[25%] sticky top-0 z-10 border-b border-border/60 bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Column
+                  </th>
+                  <th className="w-[25%] sticky top-0 z-10 border-b border-border/60 bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Type
+                  </th>
+                  <th className="w-[25%] sticky top-0 z-10 border-b border-border/60 bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Completeness
+                  </th>
+                  <th className="w-[25%] sticky top-0 z-10 border-b border-border/60 bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Unique values
+                  </th>
+                </tr>
+              </thead>
 
-            {profile.columns.map((column) => (
-              <div
-                key={column.column}
-                className="grid grid-cols-4 items-center border-b border-border/60 px-3 py-2 text-sm last:border-0"
-              >
-                <span className="font-medium">{column.column}</span>
+              <tbody className="[&_tr:last-child_td]:border-b-0">
+                {profile.columns.map((column) => (
+                  <tr key={column.column}>
+                    <td className="border-b border-border/60 px-3 py-2 font-medium">
+                      {column.column}
+                    </td>
 
-                <span className="capitalize text-muted-foreground">
-                  {column.inferredType}
-                </span>
+                    <td className="border-b border-border/60 px-3 py-2 capitalize text-muted-foreground">
+                      {column.inferredType}
+                    </td>
 
-                <span>{column.completeness}%</span>
+                    <td className="border-b border-border/60 px-3 py-2">
+                      {column.completeness}%
+                    </td>
 
-                <span>{column.uniqueValues}</span>
-              </div>
-            ))}
+                    <td className="border-b border-border/60 px-3 py-2">
+                      {column.uniqueValues}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

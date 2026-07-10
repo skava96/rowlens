@@ -11,20 +11,16 @@ function normalizeText(value: string) {
 }
 
 function getMergeKey(finding: AIFinding) {
-  if (finding.kind === "observation") {
-    return [
-      "observation",
-      finding.category ?? "general",
-      normalizeText(finding.title),
-    ].join("|");
-  }
+  const field = finding.targetField ?? "unknown-field";
+  const action = finding.suggestedAction ?? "unknown-action";
 
-  return [
-    "validation",
-    normalizeText(finding.title),
-    finding.targetField ?? "field",
-    finding.suggestedAction ?? "flag_invalid",
-  ].join("|");
+  const patternKey =
+    normalizeText(finding.title).includes("department") &&
+    normalizeText(finding.title).includes("casing")
+      ? "department-casing"
+      : normalizeText(finding.title);
+
+  return [field, action, patternKey].join("|");
 }
 
 function mergeReasoning(current: string, next: string) {
@@ -49,12 +45,9 @@ export function mergeAIFindings(findings: AIFinding[]) {
       continue;
     }
 
-    const affectedRows =
-      existing.kind === "observation"
-        ? []
-        : Array.from(
-          new Set([...existing.affectedRows, ...finding.affectedRows])
-        ).sort((left, right) => left - right);
+    const affectedRows = Array.from(
+      new Set([...existing.affectedRows, ...finding.affectedRows])
+    ).sort((left, right) => left - right);
 
     merged.set(key, {
       ...existing,

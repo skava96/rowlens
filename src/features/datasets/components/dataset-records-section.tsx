@@ -30,6 +30,7 @@ type DatasetRecordsSectionProps = {
   activeSuggestionTitle?: string;
   activeSuggestionStatus?: "pending" | "approved" | "ignored" | "resolved";
   activeSuggestionResolvedRowIds?: number[];
+  activeSuggestionTargetField?: string;
 };
 
 export default function DatasetRecordsSection({
@@ -45,6 +46,7 @@ export default function DatasetRecordsSection({
   activeSuggestionTitle,
   activeSuggestionStatus,
   activeSuggestionResolvedRowIds = [],
+  activeSuggestionTargetField,
   onUpdateCell,
   onExportRows,
   onBulkMarkValid,
@@ -68,6 +70,18 @@ export default function DatasetRecordsSection({
   const remainingAffectedRowCount =
     affectedRows.length -
     affectedRows.filter((row) => resolvedAffectedRowIdSet.has(row.id)).length;
+
+  const reviewedAffectedRowCount =
+    affectedRows.length - remainingAffectedRowCount;
+
+  const hasAffectedRowsNeedingAttention = affectedRows.some(
+    (row) => row.validationState !== "valid"
+  );
+
+  const isResolvedByManualEdit =
+    activeSuggestionStatus === "resolved" &&
+    remainingAffectedRowCount === 0 &&
+    !hasAffectedRowsNeedingAttention;
 
   const hasAffectedRows = affectedRows.length > 0;
 
@@ -129,26 +143,40 @@ export default function DatasetRecordsSection({
 
         {effectiveRecordsView === "affected" &&
           activeSuggestionTitle && (
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2">
-              <p className="text-sm text-sky-900">
-                Reviewing affected rows for{" "}
-                <span className="font-semibold">
-                  {activeSuggestionTitle}
-                </span>
-                {" - "}
-                {affectedRows.length} original affected{" "}
-                {affectedRows.length === 1 ? "row" : "rows"}
-                {activeSuggestionStatus === "pending" && (
-                  <>
-                    {" - "}
-                    {remainingAffectedRowCount} still need
-                    {remainingAffectedRowCount === 1 ? "s" : ""} attention
-                  </>
-                )}
-                {activeSuggestionStatus === "resolved" && (
-                  <>{" - "}resolved by manual edits</>
-                )}
-              </p>
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-sky-950">
+                    Reviewing: {activeSuggestionTitle}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-sky-800">
+                    {isResolvedByManualEdit
+                      ? "These rows were resolved by manual edits."
+                      : activeSuggestionStatus === "approved" ||
+                          activeSuggestionStatus === "ignored"
+                        ? "These rows are shown for audit context."
+                        : "These rows need attention before continuing."}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs font-medium">
+                  <span className="rounded-full border border-sky-200 bg-background px-2.5 py-1 text-sky-900">
+                    {affectedRows.length} affected{" "}
+                    {affectedRows.length === 1 ? "row" : "rows"}
+                  </span>
+
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
+                    {reviewedAffectedRowCount} reviewed
+                  </span>
+
+                  {activeSuggestionStatus === "pending" && (
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">
+                      {remainingAffectedRowCount} pending review
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
       </div>
@@ -161,6 +189,7 @@ export default function DatasetRecordsSection({
           schemaKey={schemaKey}
           visibleColumnKeys={visibleColumnKeys}
           highlightedRowIds={highlightedRowIds}
+          highlightedField={activeSuggestionTargetField}
           onUpdateCell={onUpdateCell}
           onExportRows={onExportRows}
           onBulkMarkValid={onBulkMarkValid}

@@ -37,7 +37,7 @@ const initialAnalysisState: AIAnalysisState = {
   analysisTargetRows: 0,
   findings: [],
   summary:
-    "Run local Pattern Discovery to find suspicious patterns or incorrect data beyond deterministic validation.",
+    "Pattern Discovery starts when you run it. Browser AI loads locally on demand, and deterministic validation remains available if local AI is unavailable.",
 };
 
 function getAIReviewSuggestionId(finding: AIFinding) {
@@ -67,7 +67,7 @@ function getFindingStatusMeta(status: AIFinding["status"]) {
   }
 
   return {
-    label: "New finding",
+    label: "New observation",
     className: "border-amber-200 bg-amber-50 text-amber-800",
   };
 }
@@ -104,15 +104,24 @@ export function DatasetAIInsightsPanel({
 
   const displayState = getAIAnalysisDisplayState(analysisState);
 
+  const showProgressPanel = displayState.showCoverage;
+  const activeProgress = progress;
+
   const isLoading =
     analysisState.status === "checking" ||
     analysisState.status === "loading_model" ||
     analysisState.status === "analyzing";
 
+  const canRunPatternDiscovery = state.rows.length > 0 && !isLoading;
+
   const runAnalysis = async () => {
     const workflowState = workflowStateRef.current;
 
-    if (!workflowState.rows.length || !workflowState.datasetId || isLoading) {
+    if (
+      !workflowState.rows.length ||
+      !workflowState.datasetId ||
+      isLoading
+    ) {
       return;
     }
 
@@ -130,7 +139,7 @@ export function DatasetAIInsightsPanel({
       totalRows: workflowState.rows.length,
       analysisTargetRows: Math.min(workflowState.rows.length, 15),
       summary:
-        "Local AI is preparing. Deterministic validation remains available.",
+        "Preparing local AI analysis. If Browser AI is unavailable, CleanFlow will continue using deterministic validation only.",
     });
 
     try {
@@ -156,10 +165,7 @@ export function DatasetAIInsightsPanel({
         },
         isCancelled: () => activeRunRef.current !== runId,
       });
-    } catch (error) {
-      console.error("[AI] failed", error);
-      console.error("CleanFlow browser AI analysis failed", error);
-
+    } catch {
       if (activeRunRef.current === runId) {
         setProgress(null);
         setAnalysisState({
@@ -171,8 +177,8 @@ export function DatasetAIInsightsPanel({
           analysisTargetRows: Math.min(workflowState.rows.length, 15),
           findings: [],
           summary:
-            "Browser AI could not complete analysis. Deterministic insights are still available.",
-          error: "Browser AI could not complete analysis.",
+            "Pattern Discovery could not complete. Deterministic validation and Review Queue results remain available.",
+          error: "Pattern Discovery could not complete.",
           lastUpdatedAt: new Date().toISOString(),
         });
       }
@@ -189,10 +195,10 @@ export function DatasetAIInsightsPanel({
     setProgress(null);
     setAnalysisState((current) => ({
       ...current,
-      status: "failed",
+      status: "cancelled",
       summary:
-        "Browser AI analysis was stopped. Deterministic insights are still available.",
-      error: "Browser AI analysis was stopped.",
+        "Pattern Discovery was stopped before completion. You can restart it at any time. Deterministic validation and Review Queue remain available.",
+      error: "Pattern Discovery was stopped.",
       lastUpdatedAt: new Date().toISOString(),
     }));
   };
@@ -215,7 +221,7 @@ export function DatasetAIInsightsPanel({
   }, [analysisState.findings, localFindingStatuses]);
 
   const addFinding = (finding: AIFinding) => {
-  if (finding.status !== "new") return;
+    if (finding.status !== "new") return;
 
     onAddFindingToReviewQueue(finding);
     setLocalFindingStatuses((current) => ({
@@ -243,19 +249,19 @@ export function DatasetAIInsightsPanel({
 
   const progressTitle =
     analysisState.status === "checking"
-      ? "Checking browser AI availability"
+      ? "Checking local AI availability"
       : analysisState.status === "loading_model"
-        ? "Loading browser AI model"
+        ? "Preparing Pattern Discovery"
         : analysisState.status === "analyzing"
-          ? "AI is analyzing rows locally"
+          ? "Discovering supplemental review patterns"
           : analysisState.status === "completed"
-            ? "AI analysis complete"
-            : "Deterministic insights are available";
+            ? "Pattern Discovery complete"
+            : "Deterministic summary available";
 
   const rowCoverageText =
     analysisState.status === "completed"
-      ? `AI analysis complete · ${analysisState.rowsAnalyzed} of ${analysisState.totalRows} rows analyzed`
-      : `Rows analyzed: ${analysisState.rowsAnalyzed} of ${analysisState.totalRows}`;
+      ? `Pattern Discovery complete - ${analysisState.rowsAnalyzed} / ${analysisState.totalRows} rows analyzed`
+      : `Rows analyzed: ${analysisState.rowsAnalyzed} / ${analysisState.totalRows}`;
 
   const displayRowCoverageText =
     analysisState.status === "loading_model"
@@ -264,47 +270,42 @@ export function DatasetAIInsightsPanel({
         ? "Preparing local analysis"
         : rowCoverageText;
 
+  const summaryText = analysisState.summary;
+
   const modeLabel =
     analysisState.status === "completed"
-      ? "AI complete"
-      : analysisState.status === "unavailable" ||
-        analysisState.status === "failed"
-        ? "Fallback insights"
-        : analysisState.status === "loading_model"
-          ? "AI loading"
-          : analysisState.status === "checking"
-            ? "AI checking"
-            : analysisState.status === "analyzing"
-              ? "AI analyzing"
-              : "Optional AI";
-
-  const displayProgressMessage =
-    progress?.message ||
-    (analysisState.status === "loading_model"
-      ? "Loading local AI model. First load can take a few minutes."
-      : analysisState.status === "checking"
-        ? "Checking browser AI availability."
-        : analysisState.status === "analyzing"
-          ? "Analyzing dataset rows locally."
-          : undefined);
+      ? "Discovery complete"
+      : analysisState.status === "unavailable"
+        ? "Deterministic Summary"
+        : analysisState.status === "failed"
+          ? "Discovery unavailable"
+          : analysisState.status === "cancelled"
+            ? "Analysis stopped"
+            : analysisState.status === "loading_model"
+              ? "Starting Analysis"
+              : analysisState.status === "checking"
+                ? "Checking support"
+                : analysisState.status === "analyzing"
+                  ? "Analyzing locally"
+                  : "Optional discovery";
 
   const modelLoadPercent =
-    progress?.stage === "loading" && typeof progress.progress === "number"
-      ? Math.max(0, Math.min(100, Math.round(progress.progress * 100)))
+    activeProgress?.stage === "loading" &&
+      typeof activeProgress.progress === "number"
+      ? Math.round(activeProgress.progress * 100)
       : null;
 
-  const loadingProgressText =
+  const loadingDetailText = [
+    activeProgress?.message,
     modelLoadPercent !== null
-      ? `${modelLoadPercent}% model loaded`
-      : null;
-
-  const loadingDetailText =
-    isLoading && displayProgressMessage
-      ? [displayProgressMessage, loadingProgressText].filter(Boolean).join(" · ")
-      : null;
+      ? `${modelLoadPercent}% downloaded`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(" - ");
 
   const activeProgressRatio =
-    modelLoadPercent !== null && analysisState.status === "loading_model"
+    modelLoadPercent !== null
       ? modelLoadPercent / 100
       : progressRatio;
 
@@ -317,7 +318,7 @@ export function DatasetAIInsightsPanel({
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold">AI Insights</h2>
+            <h2 className="text-lg font-semibold">Pattern Discovery</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Browser-side AI generates review guidance. Deterministic
               validation remains the source of truth.
@@ -331,9 +332,11 @@ export function DatasetAIInsightsPanel({
               "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium",
               analysisState.status === "completed"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : isLoading
-                  ? "border-sky-200 bg-sky-50 text-sky-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700"
+                : analysisState.status === "cancelled"
+                  ? "border-slate-200 bg-slate-50 text-slate-700"
+                  : isLoading
+                    ? "border-sky-200 bg-sky-50 text-sky-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700"
             )}
           >
             <Cpu className="h-3.5 w-3.5" />
@@ -344,9 +347,9 @@ export function DatasetAIInsightsPanel({
             type="button"
             size="sm"
             onClick={runAnalysis}
-            disabled={!state.rows.length || isLoading}
+            disabled={!canRunPatternDiscovery}
           >
-            Run local AI
+            Run Pattern Discovery
           </Button>
 
           {isLoading ? (
@@ -356,7 +359,7 @@ export function DatasetAIInsightsPanel({
               variant="outline"
               onClick={stopAnalysis}
             >
-              Stop AI
+              Stop Analysis
             </Button>
           ) : null}
         </div>
@@ -367,19 +370,19 @@ export function DatasetAIInsightsPanel({
           <div className="flex gap-2">
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              <p className="font-medium">Deterministic insights are available</p>
+              <p className="font-medium">Deterministic summary is available</p>
               <p className="mt-1">
-                Browser AI could not complete analysis on this device.
+                Local AI is unavailable on this device or could not complete analysis.
               </p>
               <p className="mt-1">
-                Review Queue and deterministic validation are still available.
+                Deterministic validation, Review Queue, Records, Audit, and Export remain fully available.
               </p>
             </div>
           </div>
         </div>
       ) : null}
 
-      {displayState.showCoverage ? (
+      {showProgressPanel ? (
         <div className="mt-4 rounded-xl border border-border bg-muted/30 px-4 py-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
@@ -401,10 +404,10 @@ export function DatasetAIInsightsPanel({
               <div
                 className="h-full rounded-full bg-primary transition-all"
                 style={{
-                  width:
-                    analysisState.status === "loading_model" && modelLoadPercent === null
-                      ? "8%"
-                      : `${Math.max(8, Math.round(activeProgressRatio * 100))}%`,
+                  width: `${Math.max(
+                    8,
+                    Math.round(activeProgressRatio * 100)
+                  )}%`
                 }}
               />
             </div>
@@ -413,7 +416,7 @@ export function DatasetAIInsightsPanel({
           <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>
               {analysisState.status === "analyzing"
-                ? `${analysisState.rowsAnalyzed} rows analyzed`
+                ? `${analysisState.rowsAnalyzed} / ${analysisState.totalRows} rows analyzed`
                 : `${displayFindings.length} observations found`}
             </span>
 
@@ -423,19 +426,18 @@ export function DatasetAIInsightsPanel({
       ) : null}
 
       <div className="mt-5 rounded-xl border border-border bg-muted/10 p-4">
-        {analysisState.summary ? (
+        {summaryText ? (
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              AI Summary
+              Review Guidance Summary
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {analysisState.summary}
+              {summaryText}
             </p>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Deterministic validation is ready. Run local AI for supplemental
-            observations.
+            Deterministic validation is ready. Run Pattern Discovery for supplemental review guidance.
           </p>
         )}
       </div>
@@ -448,8 +450,8 @@ export function DatasetAIInsightsPanel({
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {displayState.showFallbackCard
-                ? "Fallback findings come from deterministic Review Queue evidence."
-                : "AI observations are supplemental and never replace deterministic validation."}
+                ? "Deterministic findings come from existing Review Queue evidence."
+                : "Supplemental observations never replace deterministic validation."}
             </p>
           </div>
         </div>
@@ -466,8 +468,7 @@ export function DatasetAIInsightsPanel({
                 finding.kind === "validation" &&
                 (finding.status === "already_tracked" ||
                   finding.status === "added_to_review_queue");
-              const canAddToReviewQueue =
-                finding.kind === "validation" && finding.status === "new";
+              const canAddToReviewQueue = finding.status === "new";
               const suggestionId =
                 finding.matchedSuggestionId ?? getAIReviewSuggestionId(finding);
 
@@ -504,7 +505,7 @@ export function DatasetAIInsightsPanel({
                         )}
 
                         <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          {Math.round(finding.confidence * 100)}% confidence
+                          {Math.round(finding.confidence * 100)}% Review confidence
                         </span>
                       </div>
 
@@ -558,7 +559,6 @@ export function DatasetAIInsightsPanel({
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
                           onClick={() => addFinding(finding)}
                         >
                           <Plus className="mr-2 h-4 w-4" />
@@ -571,6 +571,7 @@ export function DatasetAIInsightsPanel({
                           type="button"
                           size="sm"
                           variant="ghost"
+                          className="text-muted-foreground hover:text-foreground"
                           onClick={() => dismissFinding(finding)}
                         >
                           <X className="mr-2 h-4 w-4" />
@@ -587,9 +588,8 @@ export function DatasetAIInsightsPanel({
       </div>
 
       <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-        Provider: {analysisState.providerName ?? "Preparing insights"}
-        {modelLabel ? ` · Model: ${modelLabel}` : ""}. No API key or backend
-        model server is used.
+        Browser AI loads on demand and runs locally in your browser.
+        {modelLabel ? ` - Model: ${modelLabel}` : ""}
       </div>
     </section>
   );

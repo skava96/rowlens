@@ -28,7 +28,7 @@ export default function DataGridColumnsPanel({ columnsPanel }: DataGridColumnsPa
 
         <div className="mt-3 flex items-center justify-between border-b border-border pb-3">
             <p className="text-xs text-muted-foreground">
-                {columnsPanel.visibleColumnKeySet.size ?? 0} visible ·{" "}
+                {columnsPanel.visibleColumnKeySet.size ?? 0} visible -{" "}
                 {columnsPanel.activePinnedColumnKeys.length
                     ? `${columnsPanel.activePinnedColumnKeys.length}/${columnsPanel.maxPinnedColumns} pinned`
                     : `pin up to ${columnsPanel.maxPinnedColumns ?? 2}`}

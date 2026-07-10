@@ -19,6 +19,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { DatasetColumn, DatasetRow } from "@/types/dataset";
+import { validateDatasetRow } from "@/features/datasets/utils/validateDatasetRow";
 
 import { formatCellValue, SortConfig } from "./dataset-table-utils";
 
@@ -26,6 +27,7 @@ interface DatasetTableGridProps {
   rows: DatasetRow[];
   visibleColumns: DatasetColumn[];
   highlightedRowIdSet: Set<number>;
+  highlightedField?: string;
   selectedRowIdSet: Set<number>;
   selectedRow: DatasetRow | null;
   selectedRowIds: number[];
@@ -104,6 +106,7 @@ export function DatasetTableGrid({
   rows,
   visibleColumns,
   highlightedRowIdSet,
+  highlightedField,
   selectedRowIdSet,
   selectedRow,
   selectedRowIds,
@@ -217,12 +220,22 @@ export function DatasetTableGrid({
     }
   ) => {
     const isHighlighted = highlightedRowIdSet.has(row.id);
-    const isValidationField = row.validationField === column.key;
-    const isValueTransformed = row.transformedFields?.includes(column.key);
+    const isTargetField = isHighlighted && highlightedField === column.key;
+    const fieldIssue = validateDatasetRow(row.values).issues.find(
+      (issue) => issue.field === column.key
+    );
+    const isMissingField = fieldIssue?.kind === "missing";
+    const isInvalidField = !!fieldIssue && fieldIssue.kind !== "missing";
+    const isManuallyEdited = row.manualEditedFields?.includes(column.key);
+    const isCorrected = row.correctedFields?.includes(column.key);
+    const isValueTransformed =
+      isManuallyEdited ||
+      isCorrected ||
+      row.transformedFields?.includes(column.key);
 
     const isReviewedOnly =
       row.reviewState === "reviewed" &&
-      row.validationField === column.key &&
+      !!fieldIssue &&
       !isValueTransformed;
 
     return (
@@ -231,30 +244,37 @@ export function DatasetTableGrid({
         className={cn(
           "min-w-[180px] border-b border-slate-300 px-4 py-3 align-middle text-foreground transition-colors hover:bg-muted",
           options?.isPinnedColumn &&
-            "sticky z-[70] w-[180px] min-w-[180px]",
+          "sticky z-[70] w-[180px] min-w-[180px]",
           options?.isLastPinnedColumn &&
-            "border-r border-r-sky-300 shadow-[4px_0_8px_rgba(0,0,0,0.08)]",
+          "border-r border-r-sky-300 shadow-[4px_0_8px_rgba(0,0,0,0.08)]",
           options?.isPinnedColumn && options.pinnedCellBackground,
           options?.isFirstScrollableColumn &&
-            isHighlighted &&
-            "border-l-4 border-l-sky-500",
+          isHighlighted &&
+          "border-l-4 border-l-sky-500",
+          isTargetField && "ring-2 ring-inset ring-sky-300",
           isValueTransformed &&
-            "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
+          "bg-emerald-50/60 ring-1 ring-inset ring-emerald-200",
           isReviewedOnly && "bg-sky-50/60 ring-1 ring-inset ring-sky-200",
-          row.validationState === "missing" &&
-            isValidationField &&
-            "bg-amber-50 text-amber-950",
-          row.validationState === "invalid" &&
-            isValidationField &&
-            "bg-red-50 text-red-950",
-          isHighlighted && isValidationField && "ring-2 ring-inset ring-sky-300"
+          isMissingField &&
+          "bg-amber-50 text-amber-950",
+          isInvalidField &&
+          "bg-red-50 text-red-950",
+          isHighlighted &&
+          !!fieldIssue &&
+          "ring-2 ring-inset ring-sky-300"
         )}
         style={options?.isPinnedColumn ? { left: options.left } : undefined}
       >
         <div className="flex flex-col gap-1">
           {renderDataCellContent(row, column)}
 
-          {isValueTransformed && (
+          {isManuallyEdited && (
+            <span className="inline-flex w-fit rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-700">
+              Edited
+            </span>
+          )}
+
+          {!isManuallyEdited && isValueTransformed && (
             <span className="inline-flex w-fit rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-700">
               Corrected
             </span>
@@ -266,7 +286,13 @@ export function DatasetTableGrid({
             </span>
           )}
 
-          {row.validationState === "invalid" && isValidationField && (
+          {isMissingField && (
+            <span className="inline-flex w-fit rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700">
+              Missing field
+            </span>
+          )}
+
+          {isInvalidField && (
             <span className="inline-flex w-fit rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-red-700">
               Invalid value
             </span>
@@ -383,6 +409,7 @@ export function DatasetTableGrid({
                 {pinnedDataColumns.map((column, index) => {
                   const left = getPinnedColumnLeft(index);
                   const isLastPinnedColumn = index === lastPinnedColumnIndex;
+                  const isTargetColumn = highlightedField === column.key;
 
                   return (
                     <TableHead
@@ -390,8 +417,10 @@ export function DatasetTableGrid({
                       aria-sort={getAriaSort(column.key)}
                       className={cn(
                         "sticky top-0 z-[80] w-[180px] min-w-[180px] bg-slate-100 px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground",
+                        isTargetColumn &&
+                        "bg-sky-100 text-sky-900 ring-2 ring-inset ring-sky-300",
                         isLastPinnedColumn &&
-                          "border-r border-r-sky-300 shadow-[4px_0_8px_rgba(0,0,0,0.08)]"
+                        "border-r border-r-sky-300 shadow-[4px_0_8px_rgba(0,0,0,0.08)]"
                       )}
                       style={{ left, width: PINNED_COLUMN_WIDTH }}
                     >
@@ -401,7 +430,12 @@ export function DatasetTableGrid({
                         className="inline-flex items-center gap-1 font-semibold hover:text-foreground"
                         aria-label={`Sort by ${column.label}`}
                       >
-                        {column.label}
+                        <span>{column.label}</span>
+                        {isTargetColumn && (
+                          <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-white">
+                            Target
+                          </span>
+                        )}
                         {sortConfig?.field === column.key && (
                           <span aria-hidden="true">
                             {sortConfig.direction === "asc" ? (
@@ -416,31 +450,44 @@ export function DatasetTableGrid({
                   );
                 })}
 
-                {scrollableColumns.map((column) => (
-                  <TableHead
-                    key={column.key}
-                    aria-sort={getAriaSort(column.key)}
-                    className="sticky top-0 z-[70] min-w-[180px] bg-slate-100 px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onToggleSort(column.key)}
-                      className="inline-flex items-center gap-1 font-semibold hover:text-foreground"
-                      aria-label={`Sort by ${column.label}`}
-                    >
-                      {column.label}
-                      {sortConfig?.field === column.key && (
-                        <span aria-hidden="true">
-                          {sortConfig.direction === "asc" ? (
-                            <ArrowUp className="h-3 w-3" />
-                          ) : (
-                            <ArrowDown className="h-3 w-3" />
-                          )}
-                        </span>
+                {scrollableColumns.map((column) => {
+                  const isTargetColumn = highlightedField === column.key;
+
+                  return (
+                    <TableHead
+                      key={column.key}
+                      aria-sort={getAriaSort(column.key)}
+                      className={cn(
+                        "sticky top-0 z-[70] min-w-[180px] bg-slate-100 px-4 py-3 text-left text-xs uppercase tracking-[0.14em] text-muted-foreground",
+                        isTargetColumn &&
+                        "bg-sky-100 text-sky-900 ring-2 ring-inset ring-sky-300"
                       )}
-                    </button>
-                  </TableHead>
-                ))}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onToggleSort(column.key)}
+                        className="inline-flex items-center gap-1 font-semibold hover:text-foreground"
+                        aria-label={`Sort by ${column.label}`}
+                      >
+                        <span>{column.label}</span>
+                        {isTargetColumn && (
+                          <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-white">
+                            Target
+                          </span>
+                        )}
+                        {sortConfig?.field === column.key && (
+                          <span aria-hidden="true">
+                            {sortConfig.direction === "asc" ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )}
+                          </span>
+                        )}
+                      </button>
+                    </TableHead>
+                  );
+                })}
 
                 <TableHead
                   className="sticky right-0 top-0 z-[80] w-[90px] min-w-[90px] border-l border-slate-300 bg-slate-100 px-3 py-3 text-center text-xs font-semibold tracking-[0.14em] text-muted-foreground"
@@ -510,18 +557,9 @@ export function DatasetTableGrid({
                   return (
                     <TableRow
                       key={row.id}
-                      tabIndex={0}
                       aria-selected={isActiveRow}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") onSelectRow(row);
-
-                        if (event.key === " ") {
-                          event.preventDefault();
-                          onToggleRowSelection(row.id);
-                        }
-                      }}
                       className={cn(
-                        "cursor-pointer relative z-[60] border-b border-slate-300 transition-colors duration-150 hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30",
+                        "relative z-[60] border-b border-slate-300 transition-colors duration-150 hover:bg-muted/40",
                         isHighlighted && "bg-sky-50",
                         isSelected && "bg-sky-50/40",
                         isActiveRow && "ring-1 ring-inset ring-sky-300"

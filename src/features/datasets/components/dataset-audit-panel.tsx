@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import { readStoredWorkflowState } from "../workflow/workflow-storage";
+import {
+  WORKFLOW_STORAGE_CHANGED_EVENT,
+  readStoredWorkflowState,
+} from "../workflow/workflow-storage";
 
 type DatasetAuditPanelProps = {
   datasetId: string;
@@ -60,6 +63,22 @@ function getDecisionCounts(workflowState: StoredWorkflowState) {
 function getEventMeta(event: AuditEvent) {
   const operation = event.operation.toLowerCase();
 
+  if (event.source === "undo" && operation.includes("manual edit")) {
+    return {
+      icon: UserPen,
+      label: "Undo Manual Edit",
+      className: "border-slate-200 bg-slate-50 text-slate-700",
+    };
+  }
+
+  if (event.source === "undo") {
+    return {
+      icon: Clock3,
+      label: "Undo Applied Fix",
+      className: "border-slate-200 bg-slate-50 text-slate-700",
+    };
+  }
+
   if (operation.includes("ignored")) {
     return {
       icon: XCircle,
@@ -98,7 +117,7 @@ function formatEventSummary(event: AuditEvent) {
   if (fieldChangeCount > 0) {
     return `${rowCount} affected ${
       rowCount === 1 ? "row" : "rows"
-    } · ${fieldChangeCount} field ${
+    } - ${fieldChangeCount} field ${
       fieldChangeCount === 1 ? "change" : "changes"
     }`;
   }
@@ -110,7 +129,7 @@ function formatActorStatus(event: AuditEvent) {
   const actor = event.actor === "local-user" ? "Current user" : event.actor;
   const status = event.status.replaceAll("_", " ");
 
-  return `${actor} · ${status}`;
+  return `${actor} - ${status}`;
 }
 
 function getServerSnapshot(): StoredWorkflowState {
@@ -120,9 +139,11 @@ function getServerSnapshot(): StoredWorkflowState {
 export function DatasetAuditPanel({ datasetId }: DatasetAuditPanelProps) {
   const subscribe = useCallback((onStoreChange: () => void) => {
     window.addEventListener("storage", onStoreChange);
+    window.addEventListener(WORKFLOW_STORAGE_CHANGED_EVENT, onStoreChange);
 
     return () => {
       window.removeEventListener("storage", onStoreChange);
+      window.removeEventListener(WORKFLOW_STORAGE_CHANGED_EVENT, onStoreChange);
     };
   }, []);
 

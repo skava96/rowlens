@@ -210,9 +210,29 @@ describe("AI dataset insights", () => {
   it("keeps compact rowId objects when prompt rows are reduced", () => {
     const state = createLargeWorkflowState(500);
     const input = createDatasetInsightInput(state);
+    const noteColumns = Array.from({ length: 20 }, (_, index) => ({
+      key: `notes_${index + 1}`,
+      label: `Notes ${index + 1}`,
+    }));
+    const rows = input.analysisRows.map((row) => ({
+      ...row,
+      values: {
+        ...row.values,
+        ...Object.fromEntries(
+          noteColumns.map((column) => [
+            column.key,
+            "Repeated customer import metadata ".repeat(20),
+          ])
+        ),
+      },
+    }));
+    const promptInput = {
+      ...input,
+      columns: [...input.columns, ...noteColumns],
+    };
     const prompt = createWebLLMPrompt({
-      input,
-      rows: input.analysisRows,
+      input: promptInput,
+      rows,
     });
 
     const payload = JSON.parse(prompt) as {
@@ -220,10 +240,14 @@ describe("AI dataset insights", () => {
       rows: Array<{ rowId: number; full_name: string; email: string }>;
     };
 
-    expect(payload.columns).toEqual(["full_name", "email"]);
+    expect(payload.columns).toEqual([
+      "full_name",
+      "email",
+      ...noteColumns.map((column) => column.key),
+    ]);
     expect(payload.columns).not.toContain("rowId");
     expect(prompt.length).toBeLessThanOrEqual(AI_MAX_PROMPT_CHARACTERS);
-    expect(payload.rows.length).toBeLessThan(input.analysisRows.length);
+    expect(payload.rows.length).toBeLessThan(rows.length);
     expect(payload.rows[0]).toMatchObject({ rowId: 1 });
     expect(payload.rows.at(-1)?.rowId).toBe(payload.rows.length);
     expect(payload.rows[0]).not.toHaveProperty("id");

@@ -1,6 +1,38 @@
 import { describe, expect, it } from "vitest";
 
-import { validateDatasetRow } from "../validateDatasetRow";
+import {
+  rowHasSuggestionIssue,
+  validateDatasetRow,
+} from "../validateDatasetRow";
+import { AISuggestion } from "@/types/dataset";
+
+const standardizeCountrySuggestion: AISuggestion = {
+  id: "standardize-country-value",
+  type: "validation",
+  title: "Standardize country value",
+  description: "Normalize country aliases.",
+  confidence: 94,
+  affectedRows: [1],
+  severity: "low",
+  status: "pending",
+  action: "standardize_value",
+  targetField: "country",
+  suggestedValue: "United States",
+};
+
+const reviewCountrySuggestion: AISuggestion = {
+  id: "review-country-value",
+  type: "validation",
+  title: "Review country value",
+  description: "Review unsupported country values.",
+  confidence: 86,
+  affectedRows: [1],
+  severity: "low",
+  status: "pending",
+  action: "flag_invalid",
+  targetField: "country",
+  suggestedValue: null,
+};
 
 describe("validateDatasetRow", () => {
   it("detects account status normalization issues", () => {
@@ -53,5 +85,47 @@ describe("validateDatasetRow", () => {
         },
       ],
     });
+  });
+
+  it("matches country alias standardization without matching unrelated country issues", () => {
+    expect(
+      rowHasSuggestionIssue(
+        { country: "US" },
+        standardizeCountrySuggestion
+      )
+    ).toBe(true);
+    expect(
+      rowHasSuggestionIssue(
+        { country: "U.S.A." },
+        standardizeCountrySuggestion
+      )
+    ).toBe(true);
+    expect(
+      rowHasSuggestionIssue(
+        { country: "" },
+        standardizeCountrySuggestion
+      )
+    ).toBe(false);
+    expect(
+      rowHasSuggestionIssue(
+        { country: "UnitedState" },
+        standardizeCountrySuggestion
+      )
+    ).toBe(false);
+    expect(
+      rowHasSuggestionIssue(
+        { country: "Canada" },
+        standardizeCountrySuggestion
+      )
+    ).toBe(false);
+  });
+
+  it("matches unsupported country review without matching country aliases", () => {
+    expect(
+      rowHasSuggestionIssue({ country: "UnitedState" }, reviewCountrySuggestion)
+    ).toBe(true);
+    expect(
+      rowHasSuggestionIssue({ country: "US" }, reviewCountrySuggestion)
+    ).toBe(false);
   });
 });

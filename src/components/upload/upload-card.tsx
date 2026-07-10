@@ -24,6 +24,7 @@ type UploadCardStatus =
 
 type Props = {
   onUploadStart: (file: File) => void;
+  onUploadRejected?: () => void;
   status: UploadCardStatus;
   fileName?: string | null;
   error?: string;
@@ -59,6 +60,7 @@ function getUploadStatusLabel(status: UploadCardStatus) {
 
 export function UploadCard({
   onUploadStart,
+  onUploadRejected,
   status,
   fileName,
   error,
@@ -84,16 +86,21 @@ export function UploadCard({
     [isUploadLocked, onUploadStart]
   );
 
-  const onDropRejected = useCallback((fileRejections: FileRejection[]) => {
-    const firstRejection = fileRejections[0];
-    const message = firstRejection
-      ? getUploadError(firstRejection)
-      : "Upload failed. Please try again.";
+  const onDropRejected = useCallback(
+    (fileRejections: FileRejection[]) => {
+      onUploadRejected?.();
 
-    toast.error("Upload failed", {
-      description: message,
-    });
-  }, []);
+      const firstRejection = fileRejections[0];
+      const message = firstRejection
+        ? getUploadError(firstRejection)
+        : "Upload failed. Please try again.";
+
+      toast.error("Upload failed", {
+        description: message,
+      });
+    },
+    [onUploadRejected]
+  );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -187,15 +194,27 @@ export function UploadCard({
             )}
 
             {status === "failed" && error && (
-              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+              <div className="rounded-xl border border-destructive/25 bg-destructive/5 p-3">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />
+                  <div className="rounded-lg border border-destructive/20 bg-background p-1.5">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                  </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-destructive">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-destructive">
                       Upload failed
                     </p>
-                    <p className="text-xs text-muted-foreground">{error}</p>
+                    <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                      {error}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={open}
+                      className="mt-3 inline-flex items-center justify-center rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                      Try another file
+                    </button>
                   </div>
                 </div>
               </div>

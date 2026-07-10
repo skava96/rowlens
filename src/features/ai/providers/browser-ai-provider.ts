@@ -13,6 +13,8 @@ import {
   AI_MAX_PROMPT_CHARACTERS,
 } from "../config";
 import { ResponseFormat } from "@mlc-ai/web-llm";
+import { AI_REVIEW_INSTRUCTIONS } from "@/features/datasets/ai/prompts/review-instructions";
+import { AI_SYSTEM_PROMPT } from "@/features/datasets/ai/prompts/system-prompt";
 
 
 type WebLLMEngine = {
@@ -148,9 +150,13 @@ function createPromptPayload({
   const columns = input.columns.map((column) => column.key);
 
   return {
-    columns,/* 
-    deterministicIssues: createKnownIssueRows({ input, rows }),
-    rowStates: createRowStateRows(rows), */
+    columns,
+    reviewInstructions: AI_REVIEW_INSTRUCTIONS,
+    datasetProfile: input.datasetProfile,
+    validationSummary: input.validationSummary,
+    reviewQueueSummary: input.reviewQueueSummary,
+    candidatePatterns: input.candidatePatterns,
+    aiColumnEvidence: input.aiColumnEvidence,
     rows: rows.map((row) =>
       createCompactRowObject({
         columns,
@@ -171,12 +177,12 @@ export function createWebLLMPrompt({
   let rowsToSend = rows;
 
   while (rowsToSend.length > 0) {
-    const prompt = JSON.stringify(
-      createPromptPayload({
-        input,
-        rows: rowsToSend,
-      })
-    );
+    const payload = createPromptPayload({
+      input,
+      rows: rowsToSend,
+    });
+
+    const prompt = JSON.stringify(payload);
 
     if (prompt.length <= AI_MAX_PROMPT_CHARACTERS || rowsToSend.length === 1) {
       return prompt;
@@ -188,12 +194,30 @@ export function createWebLLMPrompt({
     );
   }
 
-  return JSON.stringify(
-    createPromptPayload({
-      input,
-      rows: [],
-    })
-  );
+  return JSON.stringify({
+    columns: input.columns.map((column) => column.key),
+    reviewInstructions: {
+      task: "actionable_pattern_discovery",
+      deterministicValidationComplete: true,
+      maxFindings: 1,
+      requiredFindingFields: [
+        "title",
+        "description",
+        "reasoning",
+        "confidence",
+        "category",
+        "targetField",
+        "selectedValues",
+        "suggestedAction",
+      ],
+    },
+    datasetProfile: input.datasetProfile,
+    validationSummary: input.validationSummary,
+    reviewQueueSummary: input.reviewQueueSummary,
+    candidatePatterns: input.candidatePatterns.slice(0, 5),
+    aiColumnEvidence: input.aiColumnEvidence,
+    rows: [],
+  });
 }
 
 function isTrustedJsonObject(text: string) {
@@ -302,7 +326,7 @@ export class BrowserAIProvider implements AIProvider {
 
     onProgress?.({
       stage: "analyzing",
-      message: "AI is analyzing rows in the background.",
+      message: "Pattern Discovery is analyzing sampled rows locally.",
       progress: 1,
     });
 
@@ -322,12 +346,15 @@ export class BrowserAIProvider implements AIProvider {
               reasoning: { type: "string" },
               confidence: { type: "number", decimalDigits: 2 },
               category: {
-                enum: [
-                  "pattern",
-                  "business_context",
-                  "review_priority",
-                  "data_quality_summary",
-                ],
+                enum: ["pattern", "business_context", "review_priority"],
+              },
+              targetField: { type: "string" },
+              selectedValues: {
+                type: "array",
+                items: { type: "string" },
+              },
+              suggestedAction: {
+                enum: ["flag_invalid", "standardize_value"],
               },
             },
             required: [
@@ -336,6 +363,9 @@ export class BrowserAIProvider implements AIProvider {
               "reasoning",
               "confidence",
               "category",
+              "targetField",
+              "selectedValues",
+              "suggestedAction",
             ],
             additionalProperties: false,
           },
@@ -347,7 +377,7 @@ export class BrowserAIProvider implements AIProvider {
 
     const response = await engine.chat.completions.create({
       temperature: 0,
-      max_tokens: 4094,
+      max_tokens: 4096,
       response_format: {
         type: "json_object",
         schema: JSON.stringify(responseFormatSchema),
@@ -355,56 +385,27 @@ export class BrowserAIProvider implements AIProvider {
       messages: [
         {
           role: "system",
-          content: [
-            "You are CleanFlow AI.",
-            "",
-            "Deterministic validation has already been completed.",
-            "Do NOT report missing values.",
-            "Do NOT report invalid emails.",
-            "Do NOT report invalid dates.",
-            "Do NOT report duplicates.",
-            "Do NOT repeat review queue items.",
-            "",
-            "Look only for higher-level patterns that span multiple rows.",
-            "",
-            "Examples:",
-            "- inconsistent naming conventions",
-            "- inconsistent casing",
-            "- placeholder values used across many rows",
-            "- unusual category distributions",
-            "- unexpected combinations of fields",
-            "- rows that appear different from the majority",
-            "",
-            "Ignore single-row validation issues.",
-            "",
-            "Return at most 1 finding.",
-            "",
-            "If no useful pattern exists return:",
-            '{"summary":"No additional AI findings.","findings":[]}',
-            "",
-            "Return JSON only."
-          ].join("\n"),
+          content: AI_SYSTEM_PROMPT,
         },
         {
           role: "user",
           content: [
-            "Dataset JSON:",
+            "Review Context",
+            "",
             prompt,
           ].join("\n"),
         },
-      ]
+      ],
     });
 
     const finishReason = response.choices[0]?.finish_reason;
     const text = response.choices[0]?.message?.content?.trim();
 
-    if (finishReason === "length") {
-      console.warn("[AI] response was truncated by token limit.");
-    }
+    void finishReason;
 
     if (!text || !isTrustedJsonObject(text)) {
       return {
-        summary: "No additional AI observations.",
+        summary: "No actionable Pattern Discovery candidates were generated.",
         findings: [],
       };
     }
@@ -420,12 +421,13 @@ export class BrowserAIProvider implements AIProvider {
 
     onProgress?.({
       stage: "complete",
-      message: "Browser AI observations generated.",
+      message: "Actionable Pattern Discovery candidates generated.",
       progress: 1,
     });
 
     return {
-      summary: parsed.summary || "No additional AI observations.",
+      summary:
+        parsed.summary || "No actionable Pattern Discovery candidates were generated.",
       findings: parsed.findings.slice(0, AI_MAX_FINDINGS_PER_CHUNK),
     };
   }

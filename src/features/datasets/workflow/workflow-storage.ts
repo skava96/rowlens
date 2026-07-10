@@ -2,6 +2,7 @@ import { DatasetWorkflowState } from "../types/workflow";
 import { initialState } from "./workflow-reducer";
 
 const WORKFLOW_STORAGE_VERSION = 1;
+export const WORKFLOW_STORAGE_CHANGED_EVENT = "cleanflow-workflow-storage";
 
 type StoredWorkflowState = {
   version: typeof WORKFLOW_STORAGE_VERSION;

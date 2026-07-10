@@ -6,6 +6,7 @@ import { applySuggestionToRows } from "../utils/applySuggestion";
 import { getRowValidationState } from "../utils/getRowValidationState";
 import { createRowSearchText } from "../utils/createRowSearchText";
 import { rowHasSuggestionIssue } from "../utils/validateDatasetRow";
+import { sortReviewSuggestions } from "../utils/sortReviewSuggestions";
 import { AISuggestion, DatasetRow } from "@/types/dataset";
 import { AIFinding } from "@/features/ai/types";
 type WorkflowMeta = {
@@ -14,7 +15,6 @@ type WorkflowMeta = {
 };
 
 type ReviewQueueEligibleAIFinding = AIFinding & {
-    kind: "validation";
     suggestedAction: NonNullable<AIFinding["suggestedAction"]>;
     affectedRows: number[];
 };
@@ -31,15 +31,12 @@ function rowStillNeedsSuggestion(row: DatasetRow, suggestion: AISuggestion) {
     return rowHasSuggestionIssue(row.values, suggestion);
 }
 
-function reconcilePendingSuggestions(
+function reconcileReviewSuggestions(
     rows: DatasetRow[],
     suggestions: AISuggestion[]
 ) {
     return suggestions.map((suggestion) => {
-        if (
-            suggestion.status !== "pending" &&
-            suggestion.status !== "resolved"
-        ) {
+        if (suggestion.status === "ignored") {
             return suggestion;
         }
 
@@ -74,6 +71,36 @@ function getWorkflowStatus(
     return currentStatus === "completed" ? "reviewing" : currentStatus;
 }
 
+function addUniqueField(fields: string[] | undefined, field: string) {
+    return Array.from(new Set([...(fields ?? []), field]));
+}
+
+function removeFields(fields: string[] | undefined, fieldsToRemove: Set<string>) {
+    return fields?.filter((field) => !fieldsToRemove.has(field));
+}
+
+function manualTransformationHasCell(
+    transformation: DatasetWorkflowState["transformations"][number],
+    rowId: number,
+    field: string
+) {
+    if (transformation.suggestionId !== "manual-edit") return false;
+
+    return transformation.changes.some(
+        (change) => change.rowId === rowId && change.field === field
+    );
+}
+
+function getManualTransformationForCell(
+    transformations: DatasetWorkflowState["transformations"],
+    rowId: number,
+    field: string
+) {
+    return transformations.find((transformation) =>
+        manualTransformationHasCell(transformation, rowId, field)
+    );
+}
+
 function getAIReviewSuggestionId(finding: AIFinding) {
     return `ai-review-${finding.id}`;
 }
@@ -82,7 +109,6 @@ function isReviewQueueEligibleAIFinding(
     finding: AIFinding
 ): finding is ReviewQueueEligibleAIFinding {
     return (
-        finding.kind === "validation" &&
         finding.suggestedAction !== undefined &&
         finding.affectedRows.length > 0
     );
@@ -92,7 +118,8 @@ function isSafeSuggestedAction(finding: AIFinding) {
     return (
         (finding.suggestedAction === "standardize_value" ||
             finding.suggestedAction === "fill_missing") &&
-        finding.suggestedValue !== undefined
+        finding.suggestedValue !== undefined &&
+        finding.affectedRows.length === 1
     );
 }
 
@@ -146,6 +173,7 @@ export type WorkflowAction =
         };
     }
     | { type: "UPLOAD_FAILED"; error: string; meta: WorkflowMeta }
+    | { type: "UPLOAD_FAILURE_CLEARED"; datasetId: string }
     | { type: "SUGGESTION_APPROVED"; suggestionId: string; meta: WorkflowMeta }
     | { type: "SUGGESTION_IGNORED"; suggestionId: string; meta: WorkflowMeta }
     | {
@@ -215,7 +243,7 @@ export function workflowReducer(
                 status: "ready",
                 columns: action.payload.columns,
                 rows: action.analysis.rows,
-                suggestions: action.analysis.suggestions,
+                suggestions: sortReviewSuggestions(action.analysis.suggestions),
                 selectedSuggestionId: null,
                 progress: 100,
                 error: undefined,
@@ -242,6 +270,16 @@ export function workflowReducer(
                 error: action.error,
                 activity: [...state.activity, createActivity("Dataset upload failed", action.meta)],
                 profile: null,
+            };
+
+        case "UPLOAD_FAILURE_CLEARED":
+            if (state.status !== "failed") {
+                return state;
+            }
+
+            return {
+                ...initialState,
+                datasetId: action.datasetId,
             };
 
         case "SELECT_SUGGESTION": {
@@ -277,10 +315,9 @@ export function workflowReducer(
                 suggestion,
             });
 
-            const updatedSuggestions = state.suggestions.map((item) =>
-                item.id === action.suggestionId
-                    ? { ...item, status: "approved" as const }
-                    : item
+            const updatedSuggestions = reconcileReviewSuggestions(
+                result.rows,
+                state.suggestions
             );
 
             const allResolved = updatedSuggestions.every(
@@ -292,7 +329,7 @@ export function workflowReducer(
                 rows: result.rows,
                 profile: profileDataset(state.columns, result.rows),
                 status: allResolved ? "completed" : state.status,
-                suggestions: updatedSuggestions,
+                suggestions: sortReviewSuggestions(updatedSuggestions),
                 selectedSuggestionId:
                     state.selectedSuggestionId === action.suggestionId
                         ? null
@@ -348,7 +385,7 @@ export function workflowReducer(
             return {
                 ...state,
                 status: allResolved ? "completed" : state.status,
-                suggestions: updatedSuggestions,
+                suggestions: sortReviewSuggestions(updatedSuggestions),
                 selectedSuggestionId:
                     state.selectedSuggestionId === action.suggestionId
                         ? null
@@ -375,6 +412,16 @@ export function workflowReducer(
         case "CELL_UPDATED": {
             const rowToUpdate = state.rows.find((row) => row.id === action.rowId);
             const beforeValue = rowToUpdate?.values[action.field] ?? null;
+            const manualTransformation = getManualTransformationForCell(
+                state.transformations,
+                action.rowId,
+                action.field
+            );
+            const manualChange = manualTransformation?.changes.find(
+                (change) =>
+                    change.rowId === action.rowId && change.field === action.field
+            );
+            const originalValue = manualChange?.beforeValue ?? beforeValue;
             const updatedRows = state.rows.map((row) => {
                 if (row.id !== action.rowId) return row;
 
@@ -382,19 +429,26 @@ export function workflowReducer(
                     ...row.values,
                     [action.field]: action.value,
                 };
+                const isBackToOriginal = action.value === originalValue;
 
                 return {
                     ...row,
                     values: nextValues,
                     searchText: createRowSearchText(nextValues),
                     ...getRowValidationState(nextValues),
-                    transformedFields: Array.from(
-                        new Set([...(row.transformedFields ?? []), action.field])
+                    transformedFields: isBackToOriginal
+                        ? row.transformedFields?.filter((field) => field !== action.field)
+                        : addUniqueField(row.transformedFields, action.field),
+                    manualEditedFields: isBackToOriginal
+                        ? row.manualEditedFields?.filter((field) => field !== action.field)
+                        : addUniqueField(row.manualEditedFields, action.field),
+                    correctedFields: row.correctedFields?.filter(
+                        (field) => field !== action.field
                     ),
                 };
             });
 
-            const updatedSuggestions = reconcilePendingSuggestions(
+            const updatedSuggestions = reconcileReviewSuggestions(
                 updatedRows,
                 state.suggestions
             );
@@ -402,7 +456,7 @@ export function workflowReducer(
             return {
                 ...state,
                 rows: updatedRows,
-                suggestions: updatedSuggestions,
+                suggestions: sortReviewSuggestions(updatedSuggestions),
                 status: getWorkflowStatus(state.status, updatedSuggestions),
                 profile: profileDataset(state.columns, updatedRows),
                 activity: [
@@ -410,23 +464,65 @@ export function workflowReducer(
                     createActivity(`Manually updated row #${action.rowId}`, action.meta),
                 ],
                 transformations: [
-                    ...state.transformations,
-                    {
-                        id: action.meta.id,
-                        timestamp: action.meta.timestamp,
-                        suggestionId: "manual-edit",
-                        suggestionTitle: `Manual edit on row #${action.rowId}`,
-                        affectedRows: [action.rowId],
-                        action: "manual_edit",
-                        changes: [
+                    ...state.transformations.flatMap((transformation) => {
+                        if (
+                            manualTransformation &&
+                            transformation.id !== manualTransformation.id &&
+                            manualTransformationHasCell(
+                                transformation,
+                                action.rowId,
+                                action.field
+                            )
+                        ) {
+                            return [];
+                        }
+
+                        if (transformation.id !== manualTransformation?.id) {
+                            return [transformation];
+                        }
+
+                        const isBackToOriginal = action.value === originalValue;
+
+                        return [
                             {
-                                rowId: action.rowId,
-                                field: action.field,
-                                beforeValue,
-                                afterValue: action.value,
+                                ...transformation,
+                                timestamp: action.meta.timestamp,
+                                reverted: isBackToOriginal ? true : false,
+                                revertStatus: isBackToOriginal
+                                    ? "reverted" as const
+                                    : "active" as const,
+                                changes: transformation.changes.map((change) =>
+                                    change.rowId === action.rowId &&
+                                        change.field === action.field
+                                        ? {
+                                            ...change,
+                                            afterValue: action.value,
+                                        }
+                                        : change
+                                ),
                             },
-                        ],
-                    },
+                        ];
+                    }),
+                    ...(manualTransformation
+                        ? []
+                        : [
+                            {
+                                id: action.meta.id,
+                                timestamp: action.meta.timestamp,
+                                suggestionId: "manual-edit",
+                                suggestionTitle: `Manual edit on row #${action.rowId}`,
+                                affectedRows: [action.rowId],
+                                action: "manual_edit",
+                                changes: [
+                                    {
+                                        rowId: action.rowId,
+                                        field: action.field,
+                                        beforeValue,
+                                        afterValue: action.value,
+                                    },
+                                ],
+                            },
+                        ]),
                 ],
                 auditEvents: [
                     ...state.auditEvents,
@@ -492,6 +588,11 @@ export function workflowReducer(
                     transformedFields: row.transformedFields?.filter(
                         (field) => !revertedFields.has(field)
                     ),
+                    manualEditedFields: removeFields(
+                        row.manualEditedFields,
+                        revertedFields
+                    ),
+                    correctedFields: removeFields(row.correctedFields, revertedFields),
                 };
             });
 
@@ -514,14 +615,9 @@ export function workflowReducer(
                     ? "reverted"
                     : "partial_conflict";
 
-            const updatedSuggestions = reconcilePendingSuggestions(
+            const updatedSuggestions = reconcileReviewSuggestions(
                 updatedRows,
-                state.suggestions.map((suggestion) =>
-                    suggestion.id === transformation.suggestionId &&
-                        revertStatus === "reverted"
-                        ? { ...suggestion, status: "pending" as const }
-                        : suggestion
-                )
+                state.suggestions
             );
 
             return {
@@ -529,7 +625,7 @@ export function workflowReducer(
                 rows: updatedRows,
                 profile: profileDataset(state.columns, updatedRows),
                 status: "reviewing",
-                suggestions: updatedSuggestions,
+                suggestions: sortReviewSuggestions(updatedSuggestions),
                 transformations: state.transformations.map((item) =>
                     item.id === action.transformationId
                         ? { ...item, reverted: revertStatus === "reverted", revertStatus, }
@@ -539,7 +635,9 @@ export function workflowReducer(
                     ...state.activity,
                     createActivity(
                         revertStatus === "reverted"
-                            ? `Reverted: ${transformation.suggestionTitle}`
+                            ? transformation.suggestionId === "manual-edit"
+                                ? `Undo Manual Edit: ${transformation.suggestionTitle}`
+                                : `Undo Applied Fix: ${transformation.suggestionTitle}`
                             : `Partial revert conflict: ${transformation.suggestionTitle}`,
                         action.meta
                     )
@@ -553,7 +651,9 @@ export function workflowReducer(
                         actor: "local-user",
                         operation:
                             revertStatus === "reverted"
-                                ? `Reverted transformation: ${transformation.suggestionTitle}`
+                                ? transformation.suggestionId === "manual-edit"
+                                    ? `Undo Manual Edit: ${transformation.suggestionTitle}`
+                                    : `Undo Applied Fix: ${transformation.suggestionTitle}`
                                 : `Partial revert conflict: ${transformation.suggestionTitle}`,
                         rowIds: transformation.affectedRows,
                         fieldChanges: transformation.changes,
@@ -621,7 +721,7 @@ export function workflowReducer(
             return {
                 ...state,
                 status: state.status === "completed" ? "reviewing" : state.status,
-                suggestions: [...state.suggestions, suggestion],
+                suggestions: sortReviewSuggestions([...state.suggestions, suggestion]),
                 activity: [
                     ...state.activity,
                     createActivity(`AI finding added to review queue: ${finding.title}`, action.meta),
@@ -642,7 +742,10 @@ export function workflowReducer(
         }
 
         case "WORKFLOW_RESTORED":
-            return action.state;
+            return {
+                ...action.state,
+                suggestions: sortReviewSuggestions(action.state.suggestions),
+            };
 
         default:
             return state;

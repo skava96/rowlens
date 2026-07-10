@@ -41,7 +41,7 @@ describe("getAIAnalysisDisplayState", () => {
     expect(
       getAIAnalysisDisplayState(createState({ status: "analyzing" }))
       .findingsTitle
-    ).toBe("AI Observations");
+    ).toBe("Supplemental Observations");
   });
 
   it("does not keep spinner-style active progress for terminal states", () => {

@@ -5,6 +5,36 @@ import {
 } from "@/types/dataset";
 import { DatasetTransformationChange } from "../types/transformation";
 import { getRowValidationState } from "./getRowValidationState";
+import { rowHasSuggestionIssue } from "./validateDatasetRow";
+
+type SuggestionWithSuggestedValue = AISuggestion & {
+  targetField: string;
+  suggestedValue: DatasetCellValue;
+};
+
+function hasSafeSuggestedValue(
+  suggestion: AISuggestion
+): suggestion is SuggestionWithSuggestedValue {
+  const value = suggestion.suggestedValue;
+
+  return (
+    suggestion.targetField !== undefined &&
+    value !== undefined &&
+    value !== null &&
+    String(value).trim() !== "" &&
+    String(value).trim().toLowerCase() !== "unknown"
+  );
+}
+
+function canApplySuggestedValueToRow(row: DatasetRow, suggestion: AISuggestion) {
+  if (!suggestion.targetField) return false;
+
+  if (row.values[suggestion.targetField] === suggestion.suggestedValue) {
+    return false;
+  }
+
+  return rowHasSuggestionIssue(row.values, suggestion);
+}
 
 function updateRowValue(
   row: DatasetRow,
@@ -22,6 +52,10 @@ function updateRowValue(
     ...getRowValidationState(nextValues),
     transformedFields: Array.from(
       new Set([...(row.transformedFields ?? []), field])
+    ),
+    correctedFields: Array.from(new Set([...(row.correctedFields ?? []), field])),
+    manualEditedFields: row.manualEditedFields?.filter(
+      (manualField) => manualField !== field
     ),
   };
 }
@@ -48,21 +82,31 @@ export function applySuggestionToRows({
   switch (suggestion.action) {
     case "fill_missing":
     case "standardize_value": {
+      if (!hasSafeSuggestedValue(suggestion)) {
+        return {
+          rows,
+          changes,
+        };
+      }
+
+      const targetField = suggestion.targetField;
+      const suggestedValue = suggestion.suggestedValue;
+
       const updatedRows = rows.map((row): DatasetRow => {
         if (!suggestion.affectedRows.includes(row.id)) return row;
-        if (!suggestion.targetField) return row;
+        if (!canApplySuggestedValueToRow(row, suggestion)) return row;
 
-        const beforeValue = row.values[suggestion.targetField];
-        const afterValue = suggestion.suggestedValue ?? "Unknown";
+        const beforeValue = row.values[targetField];
+        const afterValue = suggestedValue;
 
         changes.push({
           rowId: row.id,
-          field: suggestion.targetField,
+          field: targetField,
           beforeValue,
           afterValue,
         });
 
-        return updateRowValue(row, suggestion.targetField, afterValue);
+        return updateRowValue(row, targetField, afterValue);
       });
 
       return {

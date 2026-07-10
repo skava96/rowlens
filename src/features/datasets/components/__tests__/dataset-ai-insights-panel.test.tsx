@@ -49,7 +49,7 @@ describe("DatasetAIInsightsPanel", () => {
 
     const firstRender = render(<DatasetAIInsightsPanel {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Run local AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run Pattern Discovery" }));
 
     await waitFor(() => {
       expect(runProgressiveDatasetAIAnalysis).toHaveBeenCalledTimes(1);
@@ -63,7 +63,7 @@ describe("DatasetAIInsightsPanel", () => {
 
     render(<DatasetAIInsightsPanel {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Run local AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run Pattern Discovery" }));
 
     await waitFor(() => {
       expect(runProgressiveDatasetAIAnalysis).toHaveBeenCalledTimes(2);

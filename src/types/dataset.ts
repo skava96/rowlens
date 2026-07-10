@@ -13,6 +13,8 @@ export interface DatasetRow {
   validationState: "valid" | "missing" | "invalid";
   validationField?: string;
   transformedFields?: string[];
+  manualEditedFields?: string[];
+  correctedFields?: string[];
   searchText?: string;
   reviewState?: "unreviewed" | "reviewed";
 }

@@ -31,7 +31,7 @@ Many of these patterns are commonly found in internal platforms, operational sys
 - Dynamic schema generation from CSV and XLSX uploads
 - Reducer-driven workflow state with audit history and undo support
 - Browser-based dataset parsing and local AI inference
-- Local AI insights powered by WebLLM and WebGPU
+- Local Pattern Discovery powered by WebLLM and WebGPU
 - Route-scoped workspaces with isolated persistence
 - Architecture organized around adapters, repositories, and feature boundaries
 
@@ -51,6 +51,11 @@ review readiness, and workflow status.
 ## Dataset Upload
 
 Upload CSV or XLSX files or load a sample workspace to explore the review workflow.
+
+Supported file formats:
+
+* CSV
+* XLSX
 
 ![Dataset Upload](./public/screenshots/01-dataset-entry.png)
 
@@ -94,7 +99,7 @@ Use the sample workspace to explore:
 - Review queue workflows
 - Record investigation
 - Audit history
-- Local AI insights
+- Local Pattern Discovery
 
 ---
 
@@ -225,7 +230,6 @@ The application was designed around a few core principles:
 
 ### Data Processing
 
-* XLSX
 * React Dropzone
 * Browser-based dataset processing
 
